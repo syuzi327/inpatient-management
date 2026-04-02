@@ -1398,7 +1398,9 @@ function renderFree() {
   const { standaloneTasks } = loadData();
   renderStandaloneList(standaloneTasks);
   const hasCompleted = standaloneTasks.some(t => t.done);
-  document.getElementById('fab-free-delete').classList.toggle('hidden', !hasCompleted);
+  if (currentTab === 'free') {
+    document.getElementById('fab-free-delete').classList.toggle('hidden', !hasCompleted);
+  }
 }
 
 function renderStandaloneList(standaloneTasks) {
