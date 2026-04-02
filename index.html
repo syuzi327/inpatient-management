@@ -213,6 +213,22 @@
     .cat-その他 { background: rgba(100,116,139,0.18); color: #94a3b8; }
 
     /* ===== TODAY TAB ===== */
+    .overdue-section {
+      background: rgba(239,68,68,0.07);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 12px;
+      padding: 12px 12px 6px;
+      margin-bottom: 22px;
+    }
+    .overdue-section-hd {
+      font-size: 12px;
+      font-weight: 700;
+      color: #f87171;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+    }
+    .overdue-group { margin-bottom: 14px; }
+    .overdue-group:last-child { margin-bottom: 0; }
     .today-group { margin-bottom: 22px; }
     .today-group-hd {
       font-size: 14px;
@@ -1243,18 +1259,40 @@ function renderToday() {
   const { patients } = loadData();
   const t = today();
   const el = document.getElementById('today-content');
+  let html = '';
+
+  // 期限切れ未完了タスク（今日より前の日付）
+  const overdueGroups = patients
+    .map(p => ({ p, tasks: p.tasks.filter(tk => tk.date && tk.date < t && !tk.done) }))
+    .filter(g => g.tasks.length);
+  if (overdueGroups.length) {
+    html += `<div class="overdue-section">
+      <div class="overdue-section-hd">⚠ 未完了・期限切れ</div>
+      ${overdueGroups.map(g => `
+        <div class="overdue-group">
+          <div class="today-group-hd">${esc(g.p.memo)}</div>
+          ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
+        </div>`).join('')}
+    </div>`;
+  }
+
+  // 今日のタスク
   const groups = patients
     .map(p => ({ p, tasks: p.tasks.filter(tk => tk.date === t) }))
     .filter(g => g.tasks.length);
-  if (!groups.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">✅</div>今日の患者タスクはありません</div>`;
-  } else {
-    el.innerHTML = groups.map(g =>
+  if (groups.length) {
+    html += groups.map(g =>
       `<div class="today-group">
         <div class="today-group-hd">${esc(g.p.memo)}</div>
         ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
       </div>`
     ).join('');
+  }
+
+  if (!html) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">✅</div>今日の患者タスクはありません</div>`;
+  } else {
+    el.innerHTML = html;
   }
 }
 
