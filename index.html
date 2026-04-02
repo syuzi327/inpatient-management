@@ -1341,7 +1341,11 @@ function renderToday() {
           <div class="today-group-hd">${esc(g.p.memo)}</div>
           ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
         </div>`).join('')}
-      ${overdueStandalone.map(tk => standaloneTaskItem(tk)).join('')}
+      ${overdueStandalone.length ? `
+        <div class="overdue-group">
+          <div class="today-group-hd">フリータスク</div>
+          ${overdueStandalone.map(tk => standaloneTaskItem(tk)).join('')}
+        </div>` : ''}
     </div>`;
   }
 
