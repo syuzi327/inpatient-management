@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>入院タスク管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #1a1a1a;
+      --surface2: #242424;
+      --border: #2e2e2e;
+      --text: #e5e5e5;
+      --text-muted: #888;
+      --accent: #60a5fa;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    /* ===== HEADER ===== */
+    .app-header {
+      padding: 10px 16px;
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-refresh-btn {
+      background: none;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 18px;
+      width: 34px;
+      height: 34px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+    .header-refresh-btn:active { opacity: 0.6; }
+    .header-refresh-btn.spinning #refresh-icon {
+      display: inline-block;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== TAB CONTENT ===== */
+    .tab-content { display: none; flex: 1; overflow-y: auto; padding: 16px; padding-bottom: 80px; }
+    .tab-content.active { display: block; }
+
+    /* ===== BOTTOM NAV ===== */
+    .bottom-nav {
+      display: flex;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      position: sticky;
+      bottom: 0;
+      flex-shrink: 0;
+      z-index: 90;
+    }
+    .nav-btn {
+      flex: 1;
+      padding: 10px 4px 12px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 11px;
+      cursor: pointer;
+      border-top: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .nav-btn .nav-icon { font-size: 20px; line-height: 1; }
+    .nav-btn.active { color: var(--accent); border-top-color: var(--accent); }
+
+    /* ===== PATIENT CARD ===== */
+    .patient-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.15s;
+    }
+    .patient-card:active { border-color: var(--accent); }
+    .patient-memo { font-size: 18px; font-weight: 700; color: #fff; }
+    .patient-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .patient-dates { font-size: 13px; color: #aaa; margin-top: 6px; }
+
+    /* ===== PROGRESS ===== */
+    .prog-wrap { margin-top: 10px; }
+    .prog-bg { background: var(--border); border-radius: 4px; height: 5px; overflow: hidden; }
+    .prog-fill { background: var(--accent); height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .prog-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ===== FAB ===== */
+    .fab {
+      position: fixed;
+      bottom: 68px;
+      right: max(16px, calc(50% - 304px));
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 28px;
+      padding: 13px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(59,130,246,0.45);
+      z-index: 80;
+    }
+    .fab:active { opacity: 0.8; }
+    .fab.hidden { display: none; }
+
+    /* ===== TASK ITEM ===== */
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 12px;
+      margin-bottom: 7px;
+      transition: opacity 0.2s;
+    }
+    .task-item.done { opacity: 0.45; }
+    .chk {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid #444;
+      background: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .chk.checked { background: #22c55e; border-color: #22c55e; }
+    .chk.checked::after { content: '✓'; color: #fff; font-size: 13px; font-weight: 700; }
+    /* タップ可能なタスク本文エリア */
+    .task-body {
+      flex: 1;
+      min-width: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .task-title {
+      flex: 1;
+      font-size: 14px;
+      color: var(--text);
+    }
+    .task-item.done .task-title { text-decoration: line-through; color: #555; }
+    .info-hint {
+      font-size: 16px;
+      opacity: 0.35;
+      flex-shrink: 0;
+    }
+
+    /* ===== CATEGORY BADGE ===== */
+    .badge {
+      font-size: 11px;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-weight: 600;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .cat-med   { background: rgba(239,68,68,0.18);  color: #f87171; }
+    .cat-exam  { background: rgba(59,130,246,0.18); color: #60a5fa; }
+    .cat-doc   { background: rgba(234,179,8,0.18);  color: #facc15; }
+    .cat-rehab { background: rgba(34,197,94,0.18);  color: #4ade80; }
+    .cat-meal  { background: rgba(168,85,247,0.18); color: #c084fc; }
+    .cat-eval  { background: rgba(249,115,22,0.18); color: #fb923c; }
+
+    /* ===== TODAY TAB ===== */
+    .today-group { margin-bottom: 22px; }
+    .today-group-hd {
+      font-size: 14px;
+      font-weight: 600;
+      color: #bbb;
+      padding-bottom: 7px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ===== DETAIL TAB ===== */
+    .detail-hd {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 18px;
+    }
+    .detail-memo { font-size: 22px; font-weight: 700; color: #fff; }
+    .detail-info { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+    .detail-note {
+      font-size: 13px;
+      color: #bbb;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .sec-hd {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #ddd;
+      margin-bottom: 10px;
+    }
+    .sec-pill {
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--surface2);
+      color: var(--text-muted);
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+    .pre-box {
+      background: rgba(96,165,250,0.06);
+      border: 1px solid rgba(96,165,250,0.2);
+      border-radius: 12px;
+      padding: 12px 12px 6px;
+      margin-bottom: 20px;
+    }
+    .date-box { margin-bottom: 20px; }
+    .delete-btn {
+      display: block;
+      width: 100%;
+      background: rgba(239,68,68,0.08);
+      color: #f87171;
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      text-align: center;
+      margin-top: 24px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .delete-btn:active { opacity: 0.7; }
+
+    /* ===== EMPTY STATE ===== */
+    .empty {
+      text-align: center;
+      color: #555;
+      padding: 50px 20px;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    .empty-icon { font-size: 42px; margin-bottom: 10px; }
+
+    /* ===== OVERLAY ===== */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      z-index: 200;
+    }
+    .overlay.open { display: block; }
+
+    /* ===== BOTTOM SHEET (shared) ===== */
+    .sheet {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 640px;
+      background: #1e1e1e;
+      border-radius: 20px 20px 0 0;
+      padding: 20px 20px 44px;
+      z-index: 201;
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+    .sheet.open { display: block; }
+    .sheet-handle {
+      width: 38px;
+      height: 4px;
+      background: #444;
+      border-radius: 2px;
+      margin: 0 auto 18px;
+    }
+    .sheet-title { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 18px; }
+
+    /* ===== REGISTRATION FORM ===== */
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 5px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      border-radius: 9px;
+      padding: 11px 12px;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      font-family: inherit;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+    .form-select { -webkit-appearance: none; appearance: none; }
+    .form-textarea { resize: vertical; min-height: 72px; }
+    .submit-btn {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    .submit-btn:active { opacity: 0.8; }
+    input[type="date"] { color-scheme: dark; }
+
+    /* ===== DATE DOW HINT ===== */
+    .date-dow {
+      font-size: 13px;
+      color: var(--accent);
+      margin-top: 5px;
+      min-height: 18px;
+    }
+
+    /* ===== DISCHARGE EDIT ROW ===== */
+    .discharge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 3px;
+    }
+    .edit-date-btn {
+      background: none;
+      border: 1px solid #3a3a3a;
+      border-radius: 6px;
+      color: var(--accent);
+      font-size: 12px;
+      padding: 2px 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .edit-date-btn:active { opacity: 0.7; }
+    .tbd-badge {
+      font-size: 12px;
+      color: #f97316;
+      background: rgba(249,115,22,0.15);
+      border-radius: 6px;
+      padding: 1px 8px;
+    }
+
+    /* ===== TASK INFO SHEET ===== */
+    .info-sheet-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .info-sheet-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.4;
+      flex: 1;
+    }
+    .info-block {
+      background: var(--surface2);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .info-block-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .info-block-label.why { color: #fb923c; }
+    .info-block-label.how { color: #4ade80; }
+    .info-block-body {
+      font-size: 14px;
+      color: #ccc;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+    .info-no-data {
+      font-size: 14px;
+      color: #555;
+      text-align: center;
+      padding: 20px 0;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="app-header">
+    <span>入院タスク管理</span>
+    <button class="header-refresh-btn" id="refresh-btn" onclick="forceRefreshTemplates()" title="テンプレートを最新化">
+      <span id="refresh-icon">↻</span>
+    </button>
+  </div>
+
+  <div id="tab-list" class="tab-content active">
+    <div id="patient-list"></div>
+  </div>
+  <div id="tab-today" class="tab-content">
+    <div id="today-content"></div>
+  </div>
+  <div id="tab-detail" class="tab-content">
+    <div id="detail-content"></div>
+  </div>
+
+  <button class="fab" id="fab" onclick="openRegModal()">＋ 新規登録</button>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-list" onclick="switchTab('list',this)">
+      <span class="nav-icon">🏥</span>患者一覧
+    </button>
+    <button class="nav-btn" id="nav-today" onclick="switchTab('today',this)">
+      <span class="nav-icon">📋</span>本日のタスク
+    </button>
+    <button class="nav-btn" id="nav-detail" onclick="switchTab('detail',this)">
+      <span class="nav-icon">👤</span>詳細
+    </button>
+  </nav>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeAllSheets()"></div>
+
+<!-- 新規登録シート -->
+<div class="sheet" id="reg-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">新規患者登録</div>
+  <form id="reg-form" onsubmit="submitForm(event)">
+    <div class="form-group">
+      <label class="form-label">識別メモ（例：YS26M、304号室）*</label>
+      <input type="text" id="f-memo" class="form-input" placeholder="個人情報は入力しないでください" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">テンプレート *</label>
+      <select id="f-template" class="form-select"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">入院日 *</label>
+      <input type="date" id="f-admit" class="form-input" required oninput="updateDow('f-admit','admit-dow')">
+      <div id="admit-dow" class="date-dow"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">予定退院日（未定の場合は空欄でOK）</label>
+      <input type="date" id="f-discharge" class="form-input" oninput="updateDow('f-discharge','discharge-dow')">
+      <div id="discharge-dow" class="date-dow"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">備考（アレルギー・禁忌など）</label>
+      <textarea id="f-note" class="form-textarea" placeholder="例：ワーファリン内服中・休薬済み"></textarea>
+    </div>
+    <button type="submit" class="submit-btn">登録する</button>
+  </form>
+</div>
+
+<!-- タスク詳細シート -->
+<div class="sheet" id="info-sheet">
+  <div class="sheet-handle"></div>
+  <div id="info-sheet-body"></div>
+</div>
+
+<!-- 退院日編集シート -->
+<div class="sheet" id="discharge-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">退院日を変更</div>
+  <div class="form-group">
+    <label class="form-label">予定退院日（未定の場合は空欄）</label>
+    <input type="date" id="edit-discharge" class="form-input" oninput="updateDow('edit-discharge','edit-discharge-dow')">
+    <div id="edit-discharge-dow" class="date-dow"></div>
+  </div>
+  <button class="submit-btn" onclick="saveDischargeDate()">保存する</button>
+  <button class="delete-btn" style="margin-top:10px" onclick="saveDischargeDate(true)">未定に戻す</button>
+</div>
+
+<script>
+// =====================================================
+// カテゴリ定義
+// =====================================================
+const CAT = {
+  med:   { label: '投薬・処置', cls: 'cat-med' },
+  exam:  { label: '検査',       cls: 'cat-exam' },
+  doc:   { label: '書類',       cls: 'cat-doc' },
+  rehab: { label: 'リハビリ',   cls: 'cat-rehab' },
+  meal:  { label: '食事',       cls: 'cat-meal' },
+  eval:  { label: '評価',       cls: 'cat-eval' },
+};
+
+// =====================================================
+// タスク解説データ（タイトルをキーとしたlookup）
+// =====================================================
+const TASK_INFO = {
+  // ─── 事前タスク ───────────────────────────────────
+  '入院前採血・凝固検査オーダー': {
+    why: '肺生検は出血リスクを伴う侵襲的処置です。PT-INR・APTT・血小板数などの凝固能を事前に確認し、安全な生検実施の可否を判断します。',
+    how: '生検予定日の1〜3日前に採血オーダーを出します。\n目安：PT-INR > 1.5、血小板 < 5万/μL の場合は医師に報告し、手技の延期・中止を検討してください。',
+  },
+  '胸部CT確認（生検部位の確認）': {
+    why: '生検ターゲット（病変）の位置・大きさ・肺実質との距離を把握し、最適なアプローチルートを決定するためです。気胸リスクの高い部位を事前に特定します。',
+    how: '最新のCT画像（薄スライスが望ましい）で病変部位を確認します。\n胸膜直下の病変や血管走行が複雑な領域は術者に必ず伝えてください。',
+  },
+  '同意書 説明・取得': {
+    why: '侵襲的処置には患者の自由意思による書面同意が必要です（医療法・倫理的義務）。インフォームドコンセントは医療安全の根幹です。',
+    how: '処置の目的・方法・主な合併症（気胸5〜20%、出血、感染など）・代替手段をわかりやすく説明します。\n患者・家族が十分に理解したことを確認してから署名をもらいましょう。',
+  },
+  '抗血栓薬 休薬確認（休薬期間の指示）': {
+    why: 'ワーファリン・抗血小板薬などは出血リスクを著しく高めます。生検前に適切な休薬が完了しているかの確認が不可欠です。',
+    how: '薬剤ごとの休薬期間の目安：\n・ワーファリン：5〜7日前\n・アスピリン：3〜5日前\n・クロピドグレル：5〜7日前\n休薬継続が難しい場合（心臓弁置換術後など）は主治医・専門科に相談してください。',
+  },
+  'アレルギー・既往歴 確認': {
+    why: '局所麻酔薬（リドカインなど）や消毒薬へのアレルギー、出血傾向に関する既往歴は合併症に直結します。見落とすと重篤なアナフィラキシーや予期せぬ出血の原因になります。',
+    how: '問診票・カルテを確認し、以下を重点的にチェックします：\n・キシロカイン（局所麻酔）アレルギー\n・ラテックスアレルギー\n・造影剤アレルギー\n・血小板減少・肝硬変などの出血傾向\n不明な点は患者本人に直接確認してください。',
+  },
+  '入院診療計画書 作成・説明': {
+    why: '入院時の診療計画書の作成・説明・交付は診療報酬上の算定要件（入院診療計画加算）であり、患者への情報提供義務でもあります。',
+    how: '入院目的・治療内容・担当医師・看護師・予定在院日数・退院時の目標を記載します。\n患者に交付し、説明済みのサインをもらいましょう。写しはカルテに綴じてください。',
+  },
+  '食事オーダー入力（入院前に設定）': {
+    why: '入院初日から適切な食事が提供されるよう、入院前に栄養科へのオーダーが必要です。生検前日・当日の絶食指示も含めて事前設定します。',
+    how: '患者の食事制限（糖尿病食・低塩食・嚥下食など）を確認してオーダー入力します。\n生検前日夜から絶食の場合は「0食」指示も忘れず入力してください。',
+  },
+
+  // ─── Day 0（入院当日）────────────────────────────
+  '初診時カルテ記載': {
+    why: '入院時の状態を正確に記録することは、治療の継続性・法的証明・医療安全の基盤となります。後の医師・看護師が引き継ぐための重要な情報源です。',
+    how: '主訴・現病歴・バイタル・身体所見・入院時検査結果を記載します。\nSOAP形式（主観・客観・評価・計画）で記録するとチーム間の引き継ぎが円滑になります。',
+  },
+  'DPC入力（入院初日）': {
+    why: 'DPC（診断群分類包括評価）は入院初日の入力が必要です。適切な診断群への分類が正確な診療報酬請求につながります。入力漏れは請求に直接影響します。',
+    how: '主傷病名・手術・処置の予定を確認し、該当する診断群分類コード（14桁）を選択・入力します。\n分類が不明な場合はコーディング担当者や医事課に確認してください。',
+  },
+  'DVT評価表 記載': {
+    why: '入院患者は深部静脈血栓症（DVT）・肺血栓塞栓症（PE）のリスクが高まります。早期の評価によりVTE（静脈血栓塞栓症）予防策の適応を判断します。',
+    how: '自施設のDVT評価ツール（Capriniスコアなど）を使用して評価します。\nリスクに応じて以下の予防策を開始・記録してください：\n・低リスク：早期離床\n・中〜高リスク：弾性ストッキング、間欠的空気圧迫法\n・高リスク：抗凝固薬（ヘパリンなど）',
+  },
+  '投薬指示・処方入力': {
+    why: '入院中の全薬剤はオーダーシステムへの入力が必須です。内服継続薬の確認と新規処方を漏れなく登録します。口頭指示は医療事故の原因となります。',
+    how: '持参薬を確認し、継続・変更・中止を判断してオーダー入力します。\n処置後に必要になる薬剤（鎮痛薬・制吐薬・抗菌薬など）もあらかじめ指示入力しておくとスムーズです。',
+  },
+  '生検前採血（凝固再確認）オーダー': {
+    why: '外来での入院前採血から時間が経過している場合、凝固能が変化している可能性があります。生検直前の再確認で安全性を担保します。',
+    how: 'PT-INR・APTT・血小板数を再検します。\n結果が安全基準を外れている場合（PT-INR > 1.5 など）は生検の延期を検討し、担当医に即報告してください。',
+  },
+  '絶飲食指示確認': {
+    why: '肺生検では鎮静薬を使用する場合があり、誤嚥性肺炎予防のために術前絶食が必要です。また、合併症が発生した際の緊急処置に備える意味もあります。',
+    how: '一般的な目安：\n・固形食：生検予定時刻の6時間前から絶食\n・水分：2時間前から絶飲\n指示がカルテに記録されているか、患者が理解・守れているかを確認してください。',
+  },
+  '同意書 最終確認': {
+    why: '処置直前に再度同意を確認することで、患者の意思変化や理解不足を最終チェックします。同意の有効性は直前確認により担保されます。',
+    how: '取得済みの同意書の署名・日付を確認します。\n「何か新たな疑問はありますか？」と声をかけ、不安を解消してから処置に臨みましょう。同意撤回の意思があれば速やかに医師に報告してください。',
+  },
+
+  // ─── Day 1（生検当日）────────────────────────────
+  '生検前バイタル確認': {
+    why: '処置前の基準値（ベースライン）を記録しておくことで、処置後の変化（血圧低下・SpO2低下など）を早期に検知できます。',
+    how: '血圧・脈拍・体温・SpO2・呼吸数を計測して記録します。\n異常値（SpO2 < 95%、収縮期血圧 < 90 または > 180 mmHg など）は処置前に医師へ報告してください。',
+  },
+  '生検実施（処置記録）': {
+    why: '処置の詳細を記録することは医療安全・法的証明・次回処置の参考のために必要です。記録は処置後速やかに行います。',
+    how: '以下を記録します：\n・生検部位・アプローチ方法（CT ガイド下 / 超音波ガイド下など）\n・使用した針の種類とサイズ\n・採取した検体数\n・局所麻酔の種類と使用量\n・処置中の患者状態（疼痛、バイタル変動など）\n・検体は病理ラベルを確認してから提出',
+  },
+  '生検後胸部X線オーダー': {
+    why: '肺生検後の気胸は最も多い合併症（発生率5〜20%）です。処置直後のX線撮影で気胸の有無を早期に確認します。',
+    how: '生検終了後、できるだけ速やかに胸部X線（立位正面）をオーダーします。\n読影結果を確認し、気胸があれば気胸量を評価して医師に即報告してください。\n少量の気胸は経過観察、大量気胸（肺虚脱 > 30%）は胸腔ドレナージが必要です。',
+  },
+  '生検後バイタル・SpO2モニタリング指示': {
+    why: '気胸・出血・迷走神経反射などの合併症は生検後2〜4時間以内に起こりやすく、継続的なモニタリングで早期発見が可能です。',
+    how: '生検後少なくとも2〜4時間は定期的なバイタルとSpO2のモニタリングを実施します。\n測定間隔の目安：最初の1時間は15〜30分ごと、その後は1時間ごと。\n指示内容（モニタリング頻度・終了条件）をカルテに明記してください。',
+  },
+  '気胸・出血の有無 確認': {
+    why: '肺生検後の気胸（5〜20%）・出血（喀血など）は主要合併症です。早期発見・早期対応が重篤化防止につながります。',
+    how: 'X線結果に加えて、以下の症状を確認します：\n・呼吸困難・胸痛（気胸のサイン）\n・SpO2 低下\n・血痰・喀血（出血のサイン）\n・顔色不良・血圧低下（緊張性気胸・大量出血）\n気胸量が多い場合は胸腔ドレナージが必要です。看護師への報告体制を整備しておいてください。',
+  },
+  '疼痛コントロール確認': {
+    why: '適切な疼痛管理は患者QOLの向上だけでなく、深呼吸・早期離床を促し、無気肺・肺炎などの二次合併症の予防にもつながります。',
+    how: 'NRS（0〜10の数値評価スケール）などで疼痛スコアを評価します。\n処方済みの鎮痛薬が十分に効いているかを確認し、NRS ≥ 4 が続く場合は追加処方を主治医に相談してください。',
+  },
+
+  // ─── Day 2（生検翌日）────────────────────────────
+  '胸部X線フォロー': {
+    why: '遅発性気胸（処置後6〜24時間後に顕在化するもの）の確認が目的です。また前日の気胸量の変化（増悪 / 改善）を把握します。',
+    how: '前日のX線と比較して気胸・胸水・肺炎像の変化を評価します。\n増悪（気胸量の増加、新たな浸潤影など）があれば主治医に即報告してください。',
+  },
+  '採血（炎症マーカー）オーダー': {
+    why: '生検後の感染・炎症反応の有無を確認します。発熱などの症状がある場合は特に重要です。',
+    how: '最低限：WBC・CRP を検査します。\n発熱が続く場合やCRP高値の場合は喀痰培養・血液培養も追加を検討してください。\nPCT（プロカルシトニン）は菌血症・敗血症の鑑別に有用です。',
+  },
+  '創部確認・処置': {
+    why: '生検刺入部の感染予防・治癒確認のため、創部の観察と適切なケアが必要です。感染を早期に発見することで重篤化を防ぎます。',
+    how: '以下を確認します：\n・発赤・腫脹・熱感・疼痛の有無\n・滲出液・出血の有無\n清潔を保ちながら必要に応じてガーゼ交換を行います。\n感染が疑われる場合は医師に報告し、必要であれば培養採取・抗菌薬の検討を行います。',
+  },
+  '抗血栓薬 再開確認': {
+    why: '休薬していた抗血栓薬を適切なタイミングで再開しないと、脳梗塞・心筋梗塞などの血栓塞栓症リスクが上昇します。',
+    how: '生検翌日（出血リスクが落ち着いた時点）に主治医と再開タイミングを確認します。\n再開の一般的な目安：明らかな出血がないことを確認できた後。\n再開指示をカルテに記録し、患者・看護師に周知してください。',
+  },
+
+  // ─── 退院前日 ─────────────────────────────────────
+  '退院サマリー作成': {
+    why: '退院サマリーは継続医療の引き継ぎに不可欠な文書です。次の外来担当医・かかりつけ医・転院先への情報伝達ツールとなります。',
+    how: '以下を記載します：\n・入院経緯・入院時の状態\n・実施した検査・処置とその結果\n・入院中の経過\n・病理結果（判明している場合）\n・現在の状態・退院後の治療方針\n・フォローアップの注意事項',
+  },
+  '退院処方入力': {
+    why: '退院後も継続が必要な薬剤・処置後の鎮痛薬などを処方します。処方漏れは患者の安全に直接関わります。',
+    how: '入院前の内服薬との整合性を確認します。\n新規処方（抗生剤・鎮痛薬など）の必要性を主治医に確認し、用量・日数・服薬指導内容を正確に入力してください。',
+  },
+  '退院指導・説明': {
+    why: '患者が退院後に安全・安心に生活できるよう、注意事項を理解した状態で帰宅してもらうためです。再入院や緊急受診を未然に防ぎます。',
+    how: '以下を説明します：\n・創部ケアの方法\n・受診が必要な症状（発熱 > 38℃、呼吸困難、血痰、胸痛など）\n・活動制限（激しい運動・入浴の可否など）\n・服薬方法と注意点\n口頭だけでなく書面でも渡すと患者の理解が深まります。',
+  },
+  '病理結果説明・外来予約': {
+    why: '肺生検の最終目的は病理診断です。結果が出るまでの期間（通常1〜2週間）に外来フォローの予約を取っておく必要があります。',
+    how: '病理結果の返却予定日を確認し、その後の外来予約を取得します。\n患者には「結果は外来でご説明します」と伝え、予約票を渡してください。\n悪性が疑われる場合は専門科（呼吸器内科・胸部外科など）への紹介を検討します。',
+  },
+
+  // ─── 退院当日 ─────────────────────────────────────
+  '退院時DPC入力': {
+    why: '退院時のDPC入力（転帰・退院日の確定）は正確な診療報酬請求のために必須です。入力漏れは返戻・減額の原因になります。',
+    how: '退院日・転帰（治癒・軽快・転院・死亡など）・最終診断群分類コードを確認・入力します。\n当日中に完了させてください。',
+  },
+  '退院確認・会計処理': {
+    why: '患者が滞りなく退院できるよう、医療費の精算と退院手続きの完了を確認します。未収金の防止にもつながります。',
+    how: '医事課と連携して会計処理が完了しているかを確認します。\n患者に退院証明書・領収書を渡し、必要に応じて退院許可書への署名をもらいます。\n次回外来の受診票・薬の受け取り場所なども案内してください。',
+  },
+};
+
+// =====================================================
+// テンプレート定義
+// =====================================================
+let TEMPLATES = {
+  lung_biopsy: {
+    name: '肺生検',
+    tasks: [
+      // 事前タスク
+      { type:'pre', title:'入院前採血・凝固検査オーダー',         cat:'exam' },
+      { type:'pre', title:'胸部CT確認（生検部位の確認）',         cat:'exam' },
+      { type:'pre', title:'同意書 説明・取得',                   cat:'doc'  },
+      { type:'pre', title:'抗血栓薬 休薬確認（休薬期間の指示）', cat:'med'  },
+      { type:'pre', title:'アレルギー・既往歴 確認',             cat:'eval' },
+      { type:'pre', title:'入院診療計画書 作成・説明',           cat:'doc'  },
+      { type:'pre', title:'食事オーダー入力（入院前に設定）',     cat:'meal' },
+      // Day 0
+      { type:'day', day:0, title:'初診時カルテ記載',                     cat:'doc'  },
+      { type:'day', day:0, title:'DPC入力（入院初日）',                  cat:'eval' },
+      { type:'day', day:0, title:'DVT評価表 記載',                       cat:'eval' },
+      { type:'day', day:0, title:'投薬指示・処方入力',                   cat:'med'  },
+      { type:'day', day:0, title:'生検前採血（凝固再確認）オーダー',     cat:'exam' },
+      { type:'day', day:0, title:'絶飲食指示確認',                       cat:'med'  },
+      { type:'day', day:0, title:'同意書 最終確認',                      cat:'doc'  },
+      // Day 1
+      { type:'day', day:1, title:'生検前バイタル確認',                     cat:'eval' },
+      { type:'day', day:1, title:'生検実施（処置記録）',                   cat:'med'  },
+      { type:'day', day:1, title:'生検後胸部X線オーダー',                 cat:'exam' },
+      { type:'day', day:1, title:'生検後バイタル・SpO2モニタリング指示',   cat:'eval' },
+      { type:'day', day:1, title:'気胸・出血の有無 確認',                 cat:'eval' },
+      { type:'day', day:1, title:'疼痛コントロール確認',                   cat:'med'  },
+      // Day 2
+      { type:'day', day:2, title:'胸部X線フォロー',             cat:'exam' },
+      { type:'day', day:2, title:'採血（炎症マーカー）オーダー', cat:'exam' },
+      { type:'day', day:2, title:'創部確認・処置',              cat:'med'  },
+      { type:'day', day:2, title:'抗血栓薬 再開確認',           cat:'med'  },
+      // 退院前日
+      { type:'day', day:-1,   title:'退院サマリー作成',       cat:'doc' },
+      { type:'day', day:-1,   title:'退院処方入力',           cat:'med' },
+      { type:'day', day:-1,   title:'退院指導・説明',         cat:'doc' },
+      { type:'day', day:-1,   title:'病理結果説明・外来予約', cat:'doc' },
+      // 退院当日
+      { type:'day', day:-0.1, title:'退院時DPC入力',     cat:'eval' },
+      { type:'day', day:-0.1, title:'退院確認・会計処理', cat:'doc'  },
+    ]
+  }
+};
+
+// =====================================================
+// スプレッドシート設定
+// =====================================================
+
+// ▼ インデックスシートのCSV公開URLをここに貼る
+// 　 空のままだと組み込みテンプレート（肺生検）を使用
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTggFXH7MtSvRiMVYU4OpNcysr7TqKV2poVcg7A5G6Q51hObqz_tOwdtz7Lt6xNtyvcFz-nLTaH880D/pub?gid=0&single=true&output=csv';
+
+const TMPL_CACHE_KEY  = 'tmpl_cache';
+const TMPL_CACHE_TIME = 'tmpl_cache_time';
+const CACHE_TTL_MS    = 60 * 60 * 1000; // 1時間
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const headers = splitCSVLine(lines[0]);
+  return lines.slice(1)
+    .filter(l => l.trim())
+    .map(l => {
+      const vals = splitCSVLine(l);
+      const obj = {};
+      headers.forEach((h, i) => obj[h.trim()] = (vals[i] || '').trim());
+      return obj;
+    });
+}
+
+function splitCSVLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
+}
+
+// ベースURLのgidパラメータだけ差し替えてテンプレートシートURLを生成
+function templateSheetUrl(baseUrl, gid) {
+  try {
+    const u = new URL(baseUrl);
+    u.searchParams.set('gid', String(gid));
+    u.searchParams.set('single', 'true');
+    return u.toString();
+  } catch {
+    return baseUrl;
+  }
+}
+
+async function fetchTemplates(force = false) {
+  if (!SHEET_URL) return;
+
+  // キャッシュ確認
+  if (!force) {
+    const cached = localStorage.getItem(TMPL_CACHE_KEY);
+    const ts     = Number(localStorage.getItem(TMPL_CACHE_TIME) || 0);
+    if (cached && Date.now() - ts < CACHE_TTL_MS) {
+      try {
+        const { templates, taskInfo } = JSON.parse(cached);
+        if (templates) TEMPLATES = templates;
+        if (taskInfo)  Object.assign(TASK_INFO, taskInfo);
+        return;
+      } catch {}
+    }
+  }
+
+  const btn = document.getElementById('refresh-btn');
+  btn?.classList.add('spinning');
+  try {
+    // 1. インデックスシートを取得（列：template_key / template_name / gid）
+    const idxRes = await fetch(SHEET_URL, { redirect: 'follow' });
+    if (!idxRes.ok) throw new Error(`インデックス取得失敗 (HTTP ${idxRes.status})`);
+    const idxText = await idxRes.text();
+    const idxRows = parseCSV(idxText);
+    if (!idxRows.length) throw new Error('インデックスシートが空です。ヘッダー行（template_key,template_name,gid）を確認してください。');
+
+    const newTemplates = {};
+    const newTaskInfo  = {};
+
+    // 2. テンプレートシートを並列取得
+    await Promise.all(idxRows.map(async row => {
+      const { template_key: key, template_name: name, gid } = row;
+      if (!key || !gid) return;
+      try {
+        const tRes = await fetch(templateSheetUrl(SHEET_URL, gid), { redirect: 'follow' });
+        if (!tRes.ok) return;
+        // 列：type / day / title / cat / why / how
+        const tRows = parseCSV(await tRes.text());
+        newTemplates[key] = {
+          name: name || key,
+          tasks: tRows
+            .filter(r => r.title)
+            .map(r => {
+              const t = { type: r.type, title: r.title, cat: r.cat };
+              if (r.type === 'day') t.day = parseFloat(r.day);
+              return t;
+            }),
+        };
+        // why / how をTASK_INFOに反映
+        tRows.forEach(r => {
+          if (r.title && (r.why || r.how)) {
+            newTaskInfo[r.title] = { why: r.why || '', how: r.how || '' };
+          }
+        });
+      } catch (e) {
+        console.warn(`テンプレート「${key}」取得失敗`, e);
+      }
+    }));
+
+    if (Object.keys(newTemplates).length) {
+      TEMPLATES = newTemplates;
+      Object.assign(TASK_INFO, newTaskInfo);
+      localStorage.setItem(TMPL_CACHE_KEY, JSON.stringify({ templates: newTemplates, taskInfo: newTaskInfo }));
+      localStorage.setItem(TMPL_CACHE_TIME, Date.now().toString());
+    }
+  } catch (e) {
+    console.warn('テンプレート取得失敗', e);
+    if (force) alert(`取得失敗：${e.message}\n\n組み込みテンプレートを使用します。`);
+  } finally {
+    btn?.classList.remove('spinning');
+  }
+}
+
+async function forceRefreshTemplates() {
+  await fetchTemplates(true);
+  if (Object.keys(TEMPLATES).length) {
+    const names = Object.values(TEMPLATES).map(t => t.name).join('、');
+    alert(`テンプレートを更新しました。\n読み込み済み：${names}`);
+  }
+}
+
+function populateTemplateSelect() {
+  const sel = document.getElementById('f-template');
+  sel.innerHTML = Object.entries(TEMPLATES)
+    .map(([k, v]) => `<option value="${k}">${v.name}</option>`)
+    .join('');
+}
+
+// =====================================================
+// 曜日ヒント表示
+// =====================================================
+function updateDow(inputId, dowId) {
+  const val = document.getElementById(inputId).value;
+  const el  = document.getElementById(dowId);
+  if (!el) return;
+  el.textContent = val ? fmtDate(val) : '';
+}
+
+// =====================================================
+// ストレージ
+// =====================================================
+function loadData() {
+  try { return JSON.parse(localStorage.getItem('admtasks') || '{"patients":[]}'); }
+  catch { return { patients: [] }; }
+}
+function saveData(d) { localStorage.setItem('admtasks', JSON.stringify(d)); }
+
+// =====================================================
+// ユーティリティ
+// =====================================================
+function uid() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+function today() { return new Date().toISOString().slice(0, 10); }
+function dateAdd(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getMonth()+1}/${d.getDate()}(${'日月火水木金土'[d.getDay()]})`;
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function calcDate(admitDate, dischargeDate, t) {
+  if (t.type === 'pre')        return null;
+  if (t.day >= 0)              return dateAdd(admitDate, t.day);
+  if (!dischargeDate)          return null;   // 退院日未定
+  if (t.day === -1)            return dateAdd(dischargeDate, -1);
+  if (t.day === -0.1)          return dischargeDate;
+  return null;
+}
+function genTasks(admitDate, dischargeDate, templateKey) {
+  const tmpl = TEMPLATES[templateKey];
+  if (!tmpl) return [];
+  return tmpl.tasks.map(t => ({
+    id: uid(), type: t.type,
+    day: t.day !== undefined ? t.day : null,
+    date: calcDate(admitDate, dischargeDate, t),
+    title: t.title, cat: t.cat, done: false,
+  }));
+}
+function progressOf(tasks) {
+  const total = tasks.length;
+  const done  = tasks.filter(t => t.done).length;
+  const pct   = total ? Math.round(done / total * 100) : 0;
+  return { total, done, pct };
+}
+
+// =====================================================
+// タブ切替
+// =====================================================
+let currentTab = 'list';
+let currentPatientId = null;
+
+function switchTab(tab, btn) {
+  currentTab = tab;
+  ['list','today','detail'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('nav-' + t).classList.toggle('active', t === tab);
+  });
+  document.getElementById('fab').classList.toggle('hidden', tab !== 'list');
+  if (tab === 'list')   renderList();
+  if (tab === 'today')  renderToday();
+  if (tab === 'detail') renderDetail();
+}
+
+// =====================================================
+// 患者一覧
+// =====================================================
+function renderList() {
+  const { patients } = loadData();
+  const el = document.getElementById('patient-list');
+  if (!patients.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🏥</div>患者が登録されていません<br>「＋ 新規登録」から追加してください</div>`;
+    return;
+  }
+  el.innerHTML = patients.map(p => {
+    const tmplName = TEMPLATES[p.template]?.name || p.template;
+    const { total, done, pct } = progressOf(p.tasks);
+    const dateRange = p.dischargeDate
+      ? `${fmtDate(p.admitDate)} 〜 ${fmtDate(p.dischargeDate)}`
+      : `${fmtDate(p.admitDate)} 〜 <span class="tbd-badge">退院日未定</span>`;
+    return `<div class="patient-card" onclick="openDetail('${p.id}')">
+      <div class="patient-memo">${esc(p.memo)}</div>
+      <div class="patient-sub">${esc(tmplName)}</div>
+      <div class="patient-dates">${dateRange}</div>
+      <div class="prog-wrap">
+        <div class="prog-bg"><div class="prog-fill" style="width:${pct}%"></div></div>
+        <div class="prog-text">${done} / ${total} タスク完了 (${pct}%)</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// =====================================================
+// 本日のタスク
+// =====================================================
+function renderToday() {
+  const { patients } = loadData();
+  const t = today();
+  const el = document.getElementById('today-content');
+  const groups = patients
+    .map(p => ({ p, tasks: p.tasks.filter(tk => tk.date === t) }))
+    .filter(g => g.tasks.length);
+  if (!groups.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">✅</div>今日のタスクはありません</div>`;
+    return;
+  }
+  el.innerHTML = groups.map(g =>
+    `<div class="today-group">
+      <div class="today-group-hd">${esc(g.p.memo)}</div>
+      ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
+    </div>`
+  ).join('');
+}
+
+// =====================================================
+// 患者詳細
+// =====================================================
+function openDetail(patientId) {
+  currentPatientId = patientId;
+  switchTab('detail', document.getElementById('nav-detail'));
+}
+
+function renderDetail() {
+  const el = document.getElementById('detail-content');
+  if (!currentPatientId) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">👤</div>患者を選択してください<br><small style="color:#444">患者一覧からタップしてください</small></div>`;
+    return;
+  }
+  const { patients } = loadData();
+  const p = patients.find(x => x.id === currentPatientId);
+  if (!p) { el.innerHTML = `<div class="empty">患者が見つかりません</div>`; return; }
+
+  const tmplName = TEMPLATES[p.template]?.name || p.template;
+  const { total, done, pct } = progressOf(p.tasks);
+
+  const preTasks = p.tasks.filter(t => t.type === 'pre');
+  const dayMap = {};
+  p.tasks.filter(t => t.type === 'day' && t.date).forEach(t => {
+    (dayMap[t.date] = dayMap[t.date] || []).push(t);
+  });
+  const sortedDates = Object.keys(dayMap).sort();
+
+  function dayLabel(date) {
+    if (p.dischargeDate) {
+      if (date === p.dischargeDate)               return '退院当日';
+      if (date === dateAdd(p.dischargeDate, -1))  return '退院前日';
+    }
+    const diff = Math.round((new Date(date + 'T00:00:00') - new Date(p.admitDate + 'T00:00:00')) / 86400000);
+    return `Day ${diff}`;
+  }
+
+  const dischargePart = p.dischargeDate
+    ? `${fmtDate(p.dischargeDate)}`
+    : `<span class="tbd-badge">未定</span>`;
+  let html = `<div class="detail-hd">
+    <div class="detail-memo">${esc(p.memo)}</div>
+    <div class="detail-info">${esc(tmplName)}</div>
+    <div class="discharge-row">
+      <span style="font-size:13px;color:#aaa">${fmtDate(p.admitDate)} 〜 ${dischargePart}</span>
+      <button class="edit-date-btn" onclick="openEditDischarge('${p.id}')">退院日を変更</button>
+    </div>
+    ${p.note ? `<div class="detail-note">${esc(p.note)}</div>` : ''}
+    <div class="prog-wrap">
+      <div class="prog-bg"><div class="prog-fill" style="width:${pct}%"></div></div>
+      <div class="prog-text">${done} / ${total} タスク完了 (${pct}%)</div>
+    </div>
+  </div>`;
+
+  if (preTasks.length) {
+    html += `<div class="pre-box">
+      <div class="sec-hd">事前タスク <span class="sec-pill">入院前</span></div>
+      ${preTasks.map(t => taskItem(t, p.id)).join('')}
+    </div>`;
+  }
+  sortedDates.forEach(date => {
+    html += `<div class="date-box">
+      <div class="sec-hd">${fmtDate(date)} <span class="sec-pill">${dayLabel(date)}</span></div>
+      ${dayMap[date].map(t => taskItem(t, p.id)).join('')}
+    </div>`;
+  });
+  html += `<button class="delete-btn" onclick="deletePatient('${p.id}')">この患者を削除</button>`;
+  el.innerHTML = html;
+}
+
+// =====================================================
+// タスクアイテム HTML
+// =====================================================
+function taskItem(task, patientId) {
+  const cat = CAT[task.cat] || { label: task.cat, cls: '' };
+  const hasInfo = !!TASK_INFO[task.title];
+  return `<div class="task-item${task.done ? ' done' : ''}" id="ti-${task.id}">
+    <div class="chk${task.done ? ' checked' : ''}" onclick="toggleTask('${patientId}','${task.id}')"></div>
+    <div class="task-body" onclick="openTaskInfo('${esc(task.title)}','${task.cat}')">
+      <div class="task-title">${esc(task.title)}</div>
+      ${hasInfo ? '<span class="info-hint">ℹ︎</span>' : ''}
+    </div>
+    <span class="badge ${cat.cls}">${cat.label}</span>
+  </div>`;
+}
+
+// =====================================================
+// タスク詳細モーダル
+// =====================================================
+function openTaskInfo(title, catKey) {
+  const info = TASK_INFO[title];
+  const cat  = CAT[catKey] || { label: catKey, cls: '' };
+
+  let html = `<div class="info-sheet-badge-row">
+    <div class="info-sheet-title">${esc(title)}</div>
+    <span class="badge ${cat.cls}">${cat.label}</span>
+  </div>`;
+
+  if (info) {
+    html += `<div class="info-block">
+      <div class="info-block-label why">🔍 なぜ行うのか</div>
+      <div class="info-block-body">${esc(info.why)}</div>
+    </div>
+    <div class="info-block">
+      <div class="info-block-label how">✅ どのように行うか / Tips</div>
+      <div class="info-block-body">${esc(info.how)}</div>
+    </div>`;
+  } else {
+    html += `<div class="info-no-data">このタスクの解説はまだありません</div>`;
+  }
+
+  document.getElementById('info-sheet-body').innerHTML = html;
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('info-sheet').classList.add('open');
+}
+
+// =====================================================
+// チェックトグル
+// =====================================================
+function toggleTask(patientId, taskId) {
+  const data = loadData();
+  const p = data.patients.find(x => x.id === patientId);
+  if (!p) return;
+  const t = p.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  t.done = !t.done;
+  saveData(data);
+  if (currentTab === 'today')  renderToday();
+  if (currentTab === 'detail') renderDetail();
+  if (currentTab === 'list')   renderList();
+}
+
+// =====================================================
+// 患者削除
+// =====================================================
+function deletePatient(patientId) {
+  if (!confirm('この患者のデータを削除しますか？\nこの操作は元に戻せません。')) return;
+  const data = loadData();
+  data.patients = data.patients.filter(p => p.id !== patientId);
+  saveData(data);
+  currentPatientId = null;
+  switchTab('list', document.getElementById('nav-list'));
+}
+
+// =====================================================
+// 登録モーダル
+// =====================================================
+function openRegModal() {
+  populateTemplateSelect();
+  document.getElementById('f-admit').value = today();
+  document.getElementById('f-discharge').value = '';
+  updateDow('f-admit', 'admit-dow');
+  updateDow('f-discharge', 'discharge-dow');
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('reg-sheet').classList.add('open');
+}
+
+function closeAllSheets() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('reg-sheet').classList.remove('open');
+  document.getElementById('info-sheet').classList.remove('open');
+  document.getElementById('discharge-sheet').classList.remove('open');
+}
+
+// =====================================================
+// 退院日編集
+// =====================================================
+let editingPatientId = null;
+
+function openEditDischarge(patientId) {
+  editingPatientId = patientId;
+  const { patients } = loadData();
+  const p = patients.find(x => x.id === patientId);
+  document.getElementById('edit-discharge').value = p?.dischargeDate || '';
+  updateDow('edit-discharge', 'edit-discharge-dow');
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('discharge-sheet').classList.add('open');
+}
+
+function saveDischargeDate(clear = false) {
+  if (!editingPatientId) return;
+  const newDate = clear ? '' : document.getElementById('edit-discharge').value;
+  if (newDate && newDate < loadData().patients.find(x => x.id === editingPatientId)?.admitDate) {
+    alert('退院予定日は入院日以降にしてください。');
+    return;
+  }
+  const data = loadData();
+  const p = data.patients.find(x => x.id === editingPatientId);
+  if (!p) return;
+  p.dischargeDate = newDate || '';
+  // 退院日に依存するタスク（day < 0）の date を再計算
+  p.tasks.forEach(t => {
+    if (t.type === 'day' && t.day < 0) {
+      t.date = calcDate(p.admitDate, p.dischargeDate, t);
+    }
+  });
+  saveData(data);
+  closeAllSheets();
+  renderDetail();
+  renderList();
+}
+
+function submitForm(e) {
+  e.preventDefault();
+  const memo          = document.getElementById('f-memo').value.trim();
+  const template      = document.getElementById('f-template').value;
+  const admitDate     = document.getElementById('f-admit').value;
+  const dischargeDate = document.getElementById('f-discharge').value;
+  const note          = document.getElementById('f-note').value.trim();
+
+  if (!memo || !admitDate) return;
+  if (dischargeDate && dischargeDate < admitDate) { alert('退院予定日は入院日以降にしてください。'); return; }
+
+  const patient = { id: uid(), memo, admitDate, dischargeDate, template, note,
+    tasks: genTasks(admitDate, dischargeDate, template) };
+  const data = loadData();
+  data.patients.unshift(patient);
+  saveData(data);
+  closeAllSheets();
+  document.getElementById('reg-form').reset();
+  renderList();
+}
+
+// =====================================================
+// 初期化
+// =====================================================
+(async () => {
+  await fetchTemplates();
+  renderList();
+})();
+</script>
+</body>
+</html>
