@@ -47,6 +47,8 @@ README.md    このファイル
 
 ## デプロイ
 
+GitHub Pagesを使用。`main`ブランチにpushすると自動でデプロイされます。
+
 ```bash
 git add index.html
 git commit -m "変更内容"
@@ -54,3 +56,9 @@ git push
 ```
 
 pushから反映まで約1〜2分。
+
+### GitHub Pages の設定方法
+
+1. GitHubリポジトリの「Settings」→「Pages」を開く
+2. Source を「Deploy from a branch」に設定
+3. Branch を `main` / `/ (root)` に設定して「Save」
