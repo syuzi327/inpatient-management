@@ -1258,17 +1258,37 @@ function renderToday() {
 
 function renderStandaloneList(standaloneTasks) {
   const el = document.getElementById('standalone-list');
-  if (!standaloneTasks.length) {
-    el.innerHTML = `<div class="standalone-empty">フリータスクはありません</div>`;
-    return;
-  }
-  const sorted = [...standaloneTasks].sort((a, b) => {
-    if (a.date && b.date) return a.date.localeCompare(b.date);
-    if (a.date) return -1;
-    if (b.date) return 1;
-    return 0;
+  const { patients } = loadData();
+
+  // 患者ごとの事前タスク
+  const preGroups = patients
+    .map(p => ({ p, tasks: p.tasks.filter(tk => tk.type === 'pre') }))
+    .filter(g => g.tasks.length);
+
+  let html = '';
+  preGroups.forEach(g => {
+    html += `<div class="today-group">
+      <div class="today-group-hd">${esc(g.p.memo)} <span style="font-size:11px;color:#888;font-weight:400">入院前</span></div>
+      ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
+    </div>`;
   });
-  el.innerHTML = sorted.map(tk => standaloneTaskItem(tk)).join('');
+
+  // standaloneタスク
+  if (standaloneTasks.length) {
+    const sorted = [...standaloneTasks].sort((a, b) => {
+      if (a.date && b.date) return a.date.localeCompare(b.date);
+      if (a.date) return -1;
+      if (b.date) return 1;
+      return 0;
+    });
+    html += sorted.map(tk => standaloneTaskItem(tk)).join('');
+  }
+
+  if (!html) {
+    el.innerHTML = `<div class="standalone-empty">タスクはありません</div>`;
+  } else {
+    el.innerHTML = html;
+  }
 }
 
 function standaloneTaskItem(tk) {
