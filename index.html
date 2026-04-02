@@ -201,12 +201,16 @@
       flex-shrink: 0;
       white-space: nowrap;
     }
-    .cat-med   { background: rgba(239,68,68,0.18);  color: #f87171; }
-    .cat-exam  { background: rgba(59,130,246,0.18); color: #60a5fa; }
-    .cat-doc   { background: rgba(234,179,8,0.18);  color: #facc15; }
-    .cat-rehab { background: rgba(34,197,94,0.18);  color: #4ade80; }
-    .cat-meal  { background: rgba(168,85,247,0.18); color: #c084fc; }
-    .cat-eval  { background: rgba(249,115,22,0.18); color: #fb923c; }
+    .cat-検査   { background: rgba(59,130,246,0.18);  color: #60a5fa; }
+    .cat-処置   { background: rgba(239,68,68,0.18);   color: #f87171; }
+    .cat-投薬   { background: rgba(249,115,22,0.18);  color: #fb923c; }
+    .cat-看護   { background: rgba(20,184,166,0.18);  color: #2dd4bf; }
+    .cat-書類   { background: rgba(234,179,8,0.18);   color: #facc15; }
+    .cat-説明   { background: rgba(236,72,153,0.18);  color: #f472b6; }
+    .cat-食事   { background: rgba(168,85,247,0.18);  color: #c084fc; }
+    .cat-リハビリ { background: rgba(34,197,94,0.18); color: #4ade80; }
+    .cat-連絡   { background: rgba(99,102,241,0.18);  color: #818cf8; }
+    .cat-その他 { background: rgba(100,116,139,0.18); color: #94a3b8; }
 
     /* ===== TODAY TAB ===== */
     .today-group { margin-bottom: 22px; }
@@ -544,12 +548,16 @@
 // カテゴリ定義
 // =====================================================
 const CAT = {
-  med:   { label: '投薬・処置', cls: 'cat-med' },
-  exam:  { label: '検査',       cls: 'cat-exam' },
-  doc:   { label: '書類',       cls: 'cat-doc' },
-  rehab: { label: 'リハビリ',   cls: 'cat-rehab' },
-  meal:  { label: '食事',       cls: 'cat-meal' },
-  eval:  { label: '評価',       cls: 'cat-eval' },
+  '検査':    { label: '検査',    cls: 'cat-検査' },
+  '処置':    { label: '処置',    cls: 'cat-処置' },
+  '投薬':    { label: '投薬',    cls: 'cat-投薬' },
+  '看護':    { label: '看護',    cls: 'cat-看護' },
+  '書類':    { label: '書類',    cls: 'cat-書類' },
+  '説明':    { label: '説明',    cls: 'cat-説明' },
+  '食事':    { label: '食事',    cls: 'cat-食事' },
+  'リハビリ':{ label: 'リハビリ',cls: 'cat-リハビリ' },
+  '連絡':    { label: '連絡',    cls: 'cat-連絡' },
+  'その他':  { label: 'その他',  cls: 'cat-その他' },
 };
 
 // =====================================================
@@ -697,41 +705,41 @@ let TEMPLATES = {
     name: '肺生検',
     tasks: [
       // 事前タスク
-      { type:'pre', title:'入院前採血・凝固検査オーダー',         cat:'exam' },
-      { type:'pre', title:'胸部CT確認（生検部位の確認）',         cat:'exam' },
-      { type:'pre', title:'同意書 説明・取得',                   cat:'doc'  },
-      { type:'pre', title:'抗血栓薬 休薬確認（休薬期間の指示）', cat:'med'  },
-      { type:'pre', title:'アレルギー・既往歴 確認',             cat:'eval' },
-      { type:'pre', title:'入院診療計画書 作成・説明',           cat:'doc'  },
-      { type:'pre', title:'食事オーダー入力（入院前に設定）',     cat:'meal' },
+      { type:'pre', title:'入院前採血・凝固検査オーダー',         cat:'検査' },
+      { type:'pre', title:'胸部CT確認（生検部位の確認）',         cat:'検査' },
+      { type:'pre', title:'同意書 説明・取得',                   cat:'説明' },
+      { type:'pre', title:'抗血栓薬 休薬確認（休薬期間の指示）', cat:'投薬' },
+      { type:'pre', title:'アレルギー・既往歴 確認',             cat:'看護' },
+      { type:'pre', title:'入院診療計画書 作成・説明',           cat:'書類' },
+      { type:'pre', title:'食事オーダー入力（入院前に設定）',     cat:'食事' },
       // 第1病日（入院日）
-      { type:'day', day:1, title:'初診時カルテ記載',                     cat:'doc'  },
-      { type:'day', day:1, title:'DPC入力（入院初日）',                  cat:'eval' },
-      { type:'day', day:1, title:'DVT評価表 記載',                       cat:'eval' },
-      { type:'day', day:1, title:'投薬指示・処方入力',                   cat:'med'  },
-      { type:'day', day:1, title:'生検前採血（凝固再確認）オーダー',     cat:'exam' },
-      { type:'day', day:1, title:'絶飲食指示確認',                       cat:'med'  },
-      { type:'day', day:1, title:'同意書 最終確認',                      cat:'doc'  },
+      { type:'day', day:1, title:'初診時カルテ記載',                     cat:'書類' },
+      { type:'day', day:1, title:'DPC入力（入院初日）',                  cat:'書類' },
+      { type:'day', day:1, title:'DVT評価表 記載',                       cat:'書類' },
+      { type:'day', day:1, title:'投薬指示・処方入力',                   cat:'投薬' },
+      { type:'day', day:1, title:'生検前採血（凝固再確認）オーダー',     cat:'検査' },
+      { type:'day', day:1, title:'絶飲食指示確認',                       cat:'食事' },
+      { type:'day', day:1, title:'同意書 最終確認',                      cat:'書類' },
       // 第2病日
-      { type:'day', day:2, title:'生検前バイタル確認',                     cat:'eval' },
-      { type:'day', day:2, title:'生検実施（処置記録）',                   cat:'med'  },
-      { type:'day', day:2, title:'生検後胸部X線オーダー',                 cat:'exam' },
-      { type:'day', day:2, title:'生検後バイタル・SpO2モニタリング指示',   cat:'eval' },
-      { type:'day', day:2, title:'気胸・出血の有無 確認',                 cat:'eval' },
-      { type:'day', day:2, title:'疼痛コントロール確認',                   cat:'med'  },
+      { type:'day', day:2, title:'生検前バイタル確認',                     cat:'看護' },
+      { type:'day', day:2, title:'生検実施（処置記録）',                   cat:'処置' },
+      { type:'day', day:2, title:'生検後胸部X線オーダー',                 cat:'検査' },
+      { type:'day', day:2, title:'生検後バイタル・SpO2モニタリング指示',   cat:'看護' },
+      { type:'day', day:2, title:'気胸・出血の有無 確認',                 cat:'看護' },
+      { type:'day', day:2, title:'疼痛コントロール確認',                   cat:'投薬' },
       // 第3病日
-      { type:'day', day:3, title:'胸部X線フォロー',             cat:'exam' },
-      { type:'day', day:3, title:'採血（炎症マーカー）オーダー', cat:'exam' },
-      { type:'day', day:3, title:'創部確認・処置',              cat:'med'  },
-      { type:'day', day:3, title:'抗血栓薬 再開確認',           cat:'med'  },
+      { type:'day', day:3, title:'胸部X線フォロー',             cat:'検査' },
+      { type:'day', day:3, title:'採血（炎症マーカー）オーダー', cat:'検査' },
+      { type:'day', day:3, title:'創部確認・処置',              cat:'処置' },
+      { type:'day', day:3, title:'抗血栓薬 再開確認',           cat:'投薬' },
       // 退院前日
-      { type:'day', day:-1,   title:'退院サマリー作成',       cat:'doc' },
-      { type:'day', day:-1,   title:'退院処方入力',           cat:'med' },
-      { type:'day', day:-1,   title:'退院指導・説明',         cat:'doc' },
-      { type:'day', day:-1,   title:'病理結果説明・外来予約', cat:'doc' },
+      { type:'day', day:-1,   title:'退院サマリー作成',       cat:'書類' },
+      { type:'day', day:-1,   title:'退院処方入力',           cat:'投薬' },
+      { type:'day', day:-1,   title:'退院指導・説明',         cat:'説明' },
+      { type:'day', day:-1,   title:'病理結果説明・外来予約', cat:'説明' },
       // 退院当日
-      { type:'day', day:-0.1, title:'退院時DPC入力',     cat:'eval' },
-      { type:'day', day:-0.1, title:'退院確認・会計処理', cat:'doc'  },
+      { type:'day', day:-0.1, title:'退院時DPC入力',     cat:'書類' },
+      { type:'day', day:-0.1, title:'退院確認・会計処理', cat:'書類' },
     ]
   }
 };
