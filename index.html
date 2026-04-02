@@ -1439,6 +1439,8 @@ function submitPatientTask(e) {
   saveData(data);
   closeAllSheets();
   renderDetail();
+  renderToday();
+  renderFree();
 }
 
 function openStandaloneSheet() {
@@ -1582,12 +1584,16 @@ function taskItem(task, patientId) {
   const hasInfo = !!TASK_INFO[task.title];
   return `<div class="task-item${task.done ? ' done' : ''}" id="ti-${task.id}">
     <div class="chk${task.done ? ' checked' : ''}" onclick="toggleTask('${patientId}','${task.id}')"></div>
-    <div class="task-body" onclick="openTaskInfo('${esc(task.title)}','${task.cat}')">
+    <div class="task-body" data-title="${esc(task.title)}" data-cat="${esc(task.cat)}" onclick="openTaskInfoFromEl(this)">
       <div class="task-title">${esc(task.title)}</div>
       ${hasInfo ? '<span class="info-hint">ℹ︎</span>' : ''}
     </div>
     <span class="badge ${cat.cls}">${cat.label}</span>
   </div>`;
+}
+
+function openTaskInfoFromEl(el) {
+  openTaskInfo(el.dataset.title, el.dataset.cat);
 }
 
 // =====================================================
@@ -1714,6 +1720,8 @@ function saveDischargeDate(clear = false) {
   closeAllSheets();
   renderDetail();
   renderList();
+  renderToday();
+  renderFree();
 }
 
 function submitForm(e) {
