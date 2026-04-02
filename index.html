@@ -361,20 +361,13 @@
       padding: 2px 10px;
       border-radius: 20px;
     }
-    .pre-box {
-      background: rgba(96,165,250,0.06);
-      border: 1px solid rgba(96,165,250,0.2);
+    .pre-box, .post-box {
       border-radius: 12px;
       padding: 12px 12px 6px;
       margin-bottom: 20px;
     }
-    .post-box {
-      background: rgba(52,211,153,0.06);
-      border: 1px solid rgba(52,211,153,0.2);
-      border-radius: 12px;
-      padding: 12px 12px 6px;
-      margin-bottom: 20px;
-    }
+    .pre-box  { background: rgba(96,165,250,0.06); border: 1px solid rgba(96,165,250,0.2); }
+    .post-box { background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.2); }
     .date-box { margin-bottom: 20px; }
     .add-patient-task-btn {
       display: block;
@@ -468,7 +461,7 @@
     .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
     .form-select { -webkit-appearance: none; appearance: none; }
     .form-textarea { resize: vertical; min-height: 72px; }
-    .submit-btn {
+    .submit-btn, .form-submit {
       width: 100%;
       background: var(--accent);
       color: #fff;
@@ -480,21 +473,9 @@
       cursor: pointer;
       margin-top: 6px;
     }
-    .submit-btn:active { opacity: 0.8; }
-    .form-submit {
-      width: 100%;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      padding: 14px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 6px;
-    }
-    .form-submit:active { opacity: 0.8; }
+    .submit-btn:active, .form-submit:active { opacity: 0.8; }
     input[type="date"] { color-scheme: dark; }
+    .date-label { font-size: 11px; color: #888; margin-right: 6px; }
 
     /* ===== DATE DOW HINT ===== */
     .date-dow {
@@ -1404,7 +1385,7 @@ function renderStandaloneList(standaloneTasks) {
 
 function standaloneTaskItem(tk) {
   const cat = CAT[tk.cat] || (tk.cat ? { label: tk.cat, cls: '' } : null);
-  const dateStr = tk.date ? `<span style="font-size:11px;color:#888;margin-right:6px">${fmtDate(tk.date)}</span>` : '';
+  const dateStr = tk.date ? `<span class="date-label">${fmtDate(tk.date)}</span>` : '';
   return `<div class="task-item${tk.done ? ' done' : ''}" id="sti-${tk.id}">
     <div class="chk${tk.done ? ' checked' : ''}" onclick="toggleStandalone('${tk.id}')"></div>
     <div class="task-body" style="flex:1">
@@ -1419,11 +1400,9 @@ let addingPatientId = null;
 
 function openPatientTaskSheet(patientId) {
   addingPatientId = patientId;
-  closeAllSheets();
   document.getElementById('patient-task-form').reset();
   document.getElementById('pt-date-dow').textContent = '';
-  document.getElementById('overlay').classList.add('open');
-  document.getElementById('patient-task-sheet').classList.add('open');
+  openSheet('patient-task-sheet');
 }
 
 function submitPatientTask(e) {
@@ -1438,17 +1417,13 @@ function submitPatientTask(e) {
   p.tasks.push({ id: uid(), type: date ? 'day' : 'pre', date: date || null, day: null, title, cat, done: false, manual: true });
   saveData(data);
   closeAllSheets();
-  renderDetail();
-  renderToday();
-  renderFree();
+  refreshAll();
 }
 
 function openStandaloneSheet() {
-  closeAllSheets();
   document.getElementById('standalone-form').reset();
   document.getElementById('st-date-dow').textContent = '';
-  document.getElementById('overlay').classList.add('open');
-  document.getElementById('standalone-sheet').classList.add('open');
+  openSheet('standalone-sheet');
 }
 
 function submitStandalone(e) {
@@ -1461,7 +1436,8 @@ function submitStandalone(e) {
   data.standaloneTasks.push({ id: uid(), title, date, cat, done: false });
   saveData(data);
   closeAllSheets();
-  renderStandaloneList(data.standaloneTasks);
+  renderToday();
+  renderFree();
 }
 
 function toggleStandalone(taskId) {
@@ -1469,15 +1445,16 @@ function toggleStandalone(taskId) {
   const tk = data.standaloneTasks.find(t => t.id === taskId);
   if (tk) tk.done = !tk.done;
   saveData(data);
-  if (currentTab === 'today') renderToday();
-  else renderStandaloneList(data.standaloneTasks);
+  renderToday();
+  renderFree();
 }
 
 function deleteStandalone(taskId) {
   const data = loadData();
   data.standaloneTasks = data.standaloneTasks.filter(t => t.id !== taskId);
   saveData(data);
-  renderStandaloneList(data.standaloneTasks);
+  renderToday();
+  renderFree();
 }
 
 // =====================================================
@@ -1637,10 +1614,7 @@ function toggleTask(patientId, taskId) {
   if (!t) return;
   t.done = !t.done;
   saveData(data);
-  if (currentTab === 'today')  renderToday();
-  if (currentTab === 'free')   renderFree();
-  if (currentTab === 'detail') renderDetail();
-  if (currentTab === 'list')   renderList();
+  refreshAll();
 }
 
 // =====================================================
@@ -1664,24 +1638,30 @@ function openRegModal() {
   document.getElementById('f-discharge').value = '';
   updateDow('f-admit', 'admit-dow');
   updateDow('f-discharge', 'discharge-dow');
-  document.getElementById('overlay').classList.add('open');
-  document.getElementById('reg-sheet').classList.add('open');
+  openSheet('reg-sheet');
 }
 
 function closeAllSheets() {
-  document.getElementById('overlay').classList.remove('open');
-  document.getElementById('reg-sheet').classList.remove('open');
-  document.getElementById('info-sheet').classList.remove('open');
-  document.getElementById('discharge-sheet').classList.remove('open');
-  document.getElementById('help-sheet').classList.remove('open');
-  document.getElementById('standalone-sheet').classList.remove('open');
-  document.getElementById('patient-task-sheet').classList.remove('open');
+  ['overlay','reg-sheet','info-sheet','discharge-sheet','help-sheet','standalone-sheet','patient-task-sheet'].forEach(id => {
+    document.getElementById(id).classList.remove('open');
+  });
+}
+
+function openSheet(sheetId) {
+  closeAllSheets();
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById(sheetId).classList.add('open');
+}
+
+function refreshAll() {
+  renderList();
+  renderToday();
+  renderFree();
+  renderDetail();
 }
 
 function openHelp() {
-  closeAllSheets();
-  document.getElementById('overlay').classList.add('open');
-  document.getElementById('help-sheet').classList.add('open');
+  openSheet('help-sheet');
 }
 
 // =====================================================
@@ -1696,8 +1676,7 @@ function openEditDischarge(patientId) {
   editingPatientId = patientId;
   document.getElementById('edit-discharge').value = p.dischargeDate || '';
   updateDow('edit-discharge', 'edit-discharge-dow');
-  document.getElementById('overlay').classList.add('open');
-  document.getElementById('discharge-sheet').classList.add('open');
+  openSheet('discharge-sheet');
 }
 
 function saveDischargeDate(clear = false) {
@@ -1719,10 +1698,7 @@ function saveDischargeDate(clear = false) {
   });
   saveData(data);
   closeAllSheets();
-  renderDetail();
-  renderList();
-  renderToday();
-  renderFree();
+  refreshAll();
 }
 
 function submitForm(e) {
