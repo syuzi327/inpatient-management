@@ -577,7 +577,9 @@
   </div>
   <div id="tab-today" class="tab-content">
     <div id="today-content"></div>
-    <div class="standalone-section">
+  </div>
+  <div id="tab-free" class="tab-content">
+    <div class="standalone-section" style="border-top:none;padding-top:0;margin-top:0">
       <div class="standalone-hd">
         <span>フリータスク</span>
         <button class="standalone-add-btn" onclick="openStandaloneSheet()">＋ 追加</button>
@@ -596,10 +598,10 @@
       <span class="nav-icon">🏥</span>患者一覧
     </button>
     <button class="nav-btn" id="nav-today" onclick="switchTab('today',this)">
-      <span class="nav-icon">📋</span>タスク
+      <span class="nav-icon">📋</span>本日のタスク
     </button>
-    <button class="nav-btn" id="nav-detail" onclick="switchTab('detail',this)">
-      <span class="nav-icon">👤</span>詳細
+    <button class="nav-btn" id="nav-free" onclick="switchTab('free',this)">
+      <span class="nav-icon">📝</span>フリータスク
     </button>
   </nav>
 </div>
@@ -1195,13 +1197,14 @@ let currentPatientId = null;
 
 function switchTab(tab, btn) {
   currentTab = tab;
-  ['list','today','detail'].forEach(t => {
-    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
-    document.getElementById('nav-' + t).classList.toggle('active', t === tab);
+  ['list','today','free','detail'].forEach(t => {
+    document.getElementById('tab-' + t)?.classList.toggle('active', t === tab);
+    document.getElementById('nav-' + t)?.classList.toggle('active', t === tab);
   });
   document.getElementById('fab').classList.toggle('hidden', tab !== 'list');
   if (tab === 'list')   renderList();
   if (tab === 'today')  renderToday();
+  if (tab === 'free')   renderFree();
   if (tab === 'detail') renderDetail();
 }
 
@@ -1237,7 +1240,7 @@ function renderList() {
 // タスクタブ
 // =====================================================
 function renderToday() {
-  const { patients, standaloneTasks } = loadData();
+  const { patients } = loadData();
   const t = today();
   const el = document.getElementById('today-content');
   const groups = patients
@@ -1253,6 +1256,10 @@ function renderToday() {
       </div>`
     ).join('');
   }
+}
+
+function renderFree() {
+  const { standaloneTasks } = loadData();
   renderStandaloneList(standaloneTasks);
 }
 
@@ -1520,6 +1527,7 @@ function toggleTask(patientId, taskId) {
   t.done = !t.done;
   saveData(data);
   if (currentTab === 'today')  renderToday();
+  if (currentTab === 'free')   renderFree();
   if (currentTab === 'detail') renderDetail();
   if (currentTab === 'list')   renderList();
 }
