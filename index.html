@@ -1256,7 +1256,7 @@ function renderList() {
 // タスクタブ
 // =====================================================
 function renderToday() {
-  const { patients } = loadData();
+  const { patients, standaloneTasks } = loadData();
   const t = today();
   const el = document.getElementById('today-content');
   let html = '';
@@ -1279,8 +1279,8 @@ function renderToday() {
     </div>`;
   }
 
-  // 期限切れ未完了タスク（今日より前の日付 or 入院日以降の未完了事前タスク）
-  const overdueGroups = patients
+  // 期限切れ未完了タスク（患者タスク + standalone）
+  const overduePatientGroups = patients
     .map(p => ({
       p,
       tasks: p.tasks.filter(tk =>
@@ -1291,32 +1291,41 @@ function renderToday() {
       )
     }))
     .filter(g => g.tasks.length);
-  if (overdueGroups.length) {
+  const overdueStandalone = standaloneTasks.filter(tk => tk.date && tk.date < t && !tk.done);
+  if (overduePatientGroups.length || overdueStandalone.length) {
     html += `<div class="overdue-section">
       <div class="overdue-section-hd">⚠ 未完了・期限切れ</div>
-      ${overdueGroups.map(g => `
+      ${overduePatientGroups.map(g => `
         <div class="overdue-group">
           <div class="today-group-hd">${esc(g.p.memo)}</div>
           ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
         </div>`).join('')}
+      ${overdueStandalone.map(tk => standaloneTaskItem(tk)).join('')}
     </div>`;
   }
 
-  // 今日のタスク
+  // 今日のタスク（患者 + standalone）
   const groups = patients
     .map(p => ({ p, tasks: p.tasks.filter(tk => tk.date === t) }))
     .filter(g => g.tasks.length);
-  if (groups.length) {
+  const todayStandalone = standaloneTasks.filter(tk => tk.date === t);
+  if (groups.length || todayStandalone.length) {
     html += groups.map(g =>
       `<div class="today-group">
         <div class="today-group-hd">${esc(g.p.memo)}</div>
         ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
       </div>`
     ).join('');
+    if (todayStandalone.length) {
+      html += `<div class="today-group">
+        <div class="today-group-hd" style="color:#888">フリータスク</div>
+        ${todayStandalone.map(tk => standaloneTaskItem(tk)).join('')}
+      </div>`;
+    }
   }
 
   if (!html) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">✅</div>今日の患者タスクはありません</div>`;
+    el.innerHTML = `<div class="empty"><div class="empty-icon">✅</div>今日のタスクはありません</div>`;
   } else {
     el.innerHTML = html;
   }
