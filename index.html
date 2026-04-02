@@ -1075,7 +1075,7 @@ async function fetchTemplates(force = false) {
     const errors       = [];
 
     // 2. テンプレートシートを並列取得
-    await Promise.all(idxRows.map(async row => {
+    await Promise.all(idxRows.map(async (row, idx) => {
       const { template_key: key, template_name: name, gid, memo: tmplMemo } = row;
       if (!key || !gid) return;
       try {
@@ -1094,6 +1094,7 @@ async function fetchTemplates(force = false) {
         newTemplates[key] = {
           name: name || key,
           memo: tmplMemo || '',
+          order: idx,
           tasks: tRows
             .filter(r => r.title)
             .map(r => {
@@ -1139,6 +1140,7 @@ async function forceRefreshTemplates() {
 function populateTemplateSelect() {
   const sel = document.getElementById('f-template');
   sel.innerHTML = Object.entries(TEMPLATES)
+    .sort((a, b) => (a[1].order ?? 0) - (b[1].order ?? 0))
     .map(([k, v]) => `<option value="${k}">${v.name}</option>`)
     .join('');
 }
