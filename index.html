@@ -360,6 +360,19 @@
       margin-bottom: 20px;
     }
     .date-box { margin-bottom: 20px; }
+    .add-patient-task-btn {
+      display: block;
+      width: 100%;
+      background: none;
+      border: 1px dashed #3a3a3a;
+      border-radius: 10px;
+      color: #60a5fa;
+      font-size: 15px;
+      padding: 12px;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .add-patient-task-btn:active { opacity: 0.7; }
     .delete-btn {
       display: block;
       width: 100%;
@@ -678,6 +691,33 @@
       <a class="help-sheet-link" href="https://docs.google.com/spreadsheets/d/e/2PACX-1vTggFXH7MtSvRiMVYU4OpNcysr7TqKV2poVcg7A5G6Q51hObqz_tOwdtz7Lt6xNtyvcFz-nLTaH880D/pub" target="_blank" rel="noopener">スプレッドシートを開く →</a>
     </section>
   </div>
+</div>
+
+<!-- 患者タスク追加シート -->
+<div class="sheet" id="patient-task-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">タスクを追加</div>
+  <form id="patient-task-form" onsubmit="submitPatientTask(event)">
+    <div class="form-group">
+      <label class="form-label">タスク名 *</label>
+      <input type="text" id="pt-title" class="form-input" placeholder="タスク内容を入力" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">日付（任意）</label>
+      <input type="date" id="pt-date" class="form-input" oninput="updateDow('pt-date','pt-date-dow')">
+      <div class="date-dow" id="pt-date-dow"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">カテゴリ（任意）</label>
+      <select id="pt-cat" class="form-select">
+        <option value="">未分類</option>
+        <option>検査</option><option>処置</option><option>投薬</option>
+        <option>看護</option><option>書類</option><option>説明</option>
+        <option>食事</option><option>リハビリ</option><option>連絡</option><option>その他</option>
+      </select>
+    </div>
+    <button type="submit" class="form-submit">追加</button>
+  </form>
 </div>
 
 <!-- フリータスク追加シート -->
@@ -1244,6 +1284,32 @@ function standaloneTaskItem(tk) {
   </div>`;
 }
 
+let addingPatientId = null;
+
+function openPatientTaskSheet(patientId) {
+  addingPatientId = patientId;
+  closeAllSheets();
+  document.getElementById('patient-task-form').reset();
+  document.getElementById('pt-date-dow').textContent = '';
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('patient-task-sheet').classList.add('open');
+}
+
+function submitPatientTask(e) {
+  e.preventDefault();
+  const title = document.getElementById('pt-title').value.trim();
+  const date  = document.getElementById('pt-date').value;
+  const cat   = document.getElementById('pt-cat').value;
+  if (!title || !addingPatientId) return;
+  const data = loadData();
+  const p = data.patients.find(x => x.id === addingPatientId);
+  if (!p) return;
+  p.tasks.push({ id: uid(), type: date ? 'day' : 'pre', date: date || null, day: null, title, cat, done: false, manual: true });
+  saveData(data);
+  closeAllSheets();
+  renderDetail();
+}
+
 function openStandaloneSheet() {
   closeAllSheets();
   document.getElementById('standalone-form').reset();
@@ -1371,6 +1437,7 @@ function renderDetail() {
       ${postTasks.map(t => taskItem(t, p.id)).join('')}
     </div>`;
   }
+  html += `<button class="add-patient-task-btn" onclick="openPatientTaskSheet('${p.id}')">＋ タスクを追加</button>`;
   html += `<button class="delete-btn" onclick="deletePatient('${p.id}')">この患者を削除</button>`;
   el.innerHTML = html;
 }
@@ -1469,6 +1536,7 @@ function closeAllSheets() {
   document.getElementById('discharge-sheet').classList.remove('open');
   document.getElementById('help-sheet').classList.remove('open');
   document.getElementById('standalone-sheet').classList.remove('open');
+  document.getElementById('patient-task-sheet').classList.remove('open');
 }
 
 function openHelp() {
