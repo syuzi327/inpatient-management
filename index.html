@@ -1597,7 +1597,7 @@ function renderDetail() {
 // タスクアイテム HTML
 // =====================================================
 function taskItem(task, patientId) {
-  const cat = CAT[task.cat] || { label: task.cat, cls: '' };
+  const cat = task.cat ? (CAT[task.cat] || { label: task.cat, cls: '' }) : null;
   const hasInfo = !!TASK_INFO[task.title];
   return `<div class="task-item${task.done ? ' done' : ''}" id="ti-${task.id}">
     <div class="chk${task.done ? ' checked' : ''}" onclick="toggleTask('${patientId}','${task.id}')"></div>
@@ -1605,7 +1605,7 @@ function taskItem(task, patientId) {
       <div class="task-title">${esc(task.title)}</div>
       ${hasInfo ? '<span class="info-hint">ℹ︎</span>' : ''}
     </div>
-    <span class="badge ${cat.cls}">${cat.label}</span>
+    ${cat ? `<span class="badge ${cat.cls}">${cat.label}</span>` : ''}
   </div>`;
 }
 
