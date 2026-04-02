@@ -686,26 +686,26 @@ let TEMPLATES = {
       { type:'pre', title:'アレルギー・既往歴 確認',             cat:'eval' },
       { type:'pre', title:'入院診療計画書 作成・説明',           cat:'doc'  },
       { type:'pre', title:'食事オーダー入力（入院前に設定）',     cat:'meal' },
-      // Day 0
-      { type:'day', day:0, title:'初診時カルテ記載',                     cat:'doc'  },
-      { type:'day', day:0, title:'DPC入力（入院初日）',                  cat:'eval' },
-      { type:'day', day:0, title:'DVT評価表 記載',                       cat:'eval' },
-      { type:'day', day:0, title:'投薬指示・処方入力',                   cat:'med'  },
-      { type:'day', day:0, title:'生検前採血（凝固再確認）オーダー',     cat:'exam' },
-      { type:'day', day:0, title:'絶飲食指示確認',                       cat:'med'  },
-      { type:'day', day:0, title:'同意書 最終確認',                      cat:'doc'  },
-      // Day 1
-      { type:'day', day:1, title:'生検前バイタル確認',                     cat:'eval' },
-      { type:'day', day:1, title:'生検実施（処置記録）',                   cat:'med'  },
-      { type:'day', day:1, title:'生検後胸部X線オーダー',                 cat:'exam' },
-      { type:'day', day:1, title:'生検後バイタル・SpO2モニタリング指示',   cat:'eval' },
-      { type:'day', day:1, title:'気胸・出血の有無 確認',                 cat:'eval' },
-      { type:'day', day:1, title:'疼痛コントロール確認',                   cat:'med'  },
-      // Day 2
-      { type:'day', day:2, title:'胸部X線フォロー',             cat:'exam' },
-      { type:'day', day:2, title:'採血（炎症マーカー）オーダー', cat:'exam' },
-      { type:'day', day:2, title:'創部確認・処置',              cat:'med'  },
-      { type:'day', day:2, title:'抗血栓薬 再開確認',           cat:'med'  },
+      // 第1病日（入院日）
+      { type:'day', day:1, title:'初診時カルテ記載',                     cat:'doc'  },
+      { type:'day', day:1, title:'DPC入力（入院初日）',                  cat:'eval' },
+      { type:'day', day:1, title:'DVT評価表 記載',                       cat:'eval' },
+      { type:'day', day:1, title:'投薬指示・処方入力',                   cat:'med'  },
+      { type:'day', day:1, title:'生検前採血（凝固再確認）オーダー',     cat:'exam' },
+      { type:'day', day:1, title:'絶飲食指示確認',                       cat:'med'  },
+      { type:'day', day:1, title:'同意書 最終確認',                      cat:'doc'  },
+      // 第2病日
+      { type:'day', day:2, title:'生検前バイタル確認',                     cat:'eval' },
+      { type:'day', day:2, title:'生検実施（処置記録）',                   cat:'med'  },
+      { type:'day', day:2, title:'生検後胸部X線オーダー',                 cat:'exam' },
+      { type:'day', day:2, title:'生検後バイタル・SpO2モニタリング指示',   cat:'eval' },
+      { type:'day', day:2, title:'気胸・出血の有無 確認',                 cat:'eval' },
+      { type:'day', day:2, title:'疼痛コントロール確認',                   cat:'med'  },
+      // 第3病日
+      { type:'day', day:3, title:'胸部X線フォロー',             cat:'exam' },
+      { type:'day', day:3, title:'採血（炎症マーカー）オーダー', cat:'exam' },
+      { type:'day', day:3, title:'創部確認・処置',              cat:'med'  },
+      { type:'day', day:3, title:'抗血栓薬 再開確認',           cat:'med'  },
       // 退院前日
       { type:'day', day:-1,   title:'退院サマリー作成',       cat:'doc' },
       { type:'day', day:-1,   title:'退院処方入力',           cat:'med' },
@@ -908,11 +908,12 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function calcDate(admitDate, dischargeDate, t) {
-  if (t.type === 'pre')        return null;
-  if (t.day >= 0)              return dateAdd(admitDate, t.day);
-  if (!dischargeDate)          return null;   // 退院日未定
-  if (t.day === -1)            return dateAdd(dischargeDate, -1);
-  if (t.day === -0.1)          return dischargeDate;
+  if (t.type === 'pre')   return null;
+  if (t.day >= 1)         return dateAdd(admitDate, t.day - 1); // day=1 → 入院日
+  if (t.day === 0)        return dateAdd(admitDate, -1);         // day=0 → 入院前日
+  if (!dischargeDate)     return null;
+  if (t.day === -1)       return dateAdd(dischargeDate, -1);     // 退院前日
+  if (t.day === -0.1)     return dischargeDate;                  // 退院当日
   return null;
 }
 function genTasks(admitDate, dischargeDate, templateKey) {
@@ -1029,12 +1030,14 @@ function renderDetail() {
   const sortedDates = Object.keys(dayMap).sort();
 
   function dayLabel(date) {
+    if (date === p.admitDate)                    return '入院日';
+    if (date === dateAdd(p.admitDate, -1))       return '入院前日';
     if (p.dischargeDate) {
       if (date === p.dischargeDate)               return '退院当日';
       if (date === dateAdd(p.dischargeDate, -1))  return '退院前日';
     }
     const diff = Math.round((new Date(date + 'T00:00:00') - new Date(p.admitDate + 'T00:00:00')) / 86400000);
-    return `Day ${diff}`;
+    return `第${diff + 1}病日`;
   }
 
   const dischargePart = p.dischargeDate
