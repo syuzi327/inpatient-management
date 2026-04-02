@@ -240,6 +240,43 @@
       padding-top: 10px;
       border-top: 1px solid var(--border);
     }
+    .help-body {
+      overflow-y: auto;
+      max-height: 65vh;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .help-body section h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #60a5fa;
+      margin-bottom: 8px;
+    }
+    .help-body section p {
+      font-size: 13px;
+      color: #ccc;
+      line-height: 1.7;
+    }
+    .help-body section ul {
+      padding-left: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .help-body section ul li {
+      font-size: 13px;
+      color: #ccc;
+      line-height: 1.6;
+    }
+    .help-body strong { color: #fff; }
+    .help-sheet-link {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 13px;
+      color: #60a5fa;
+      text-decoration: underline;
+    }
     .tmpl-memo {
       font-size: 13px;
       color: #ccc;
@@ -461,9 +498,12 @@
 <div id="app">
   <div class="app-header">
     <span>入院タスク管理</span>
-    <button class="header-refresh-btn" id="refresh-btn" onclick="forceRefreshTemplates()" title="テンプレートを最新化">
-      <span id="refresh-icon">↻</span>
-    </button>
+    <div style="display:flex;gap:8px">
+      <button class="header-refresh-btn" id="refresh-btn" onclick="forceRefreshTemplates()" title="テンプレートを最新化">
+        <span id="refresh-icon">↻</span>
+      </button>
+      <button class="header-refresh-btn" onclick="openHelp()" title="ヘルプ">？</button>
+    </div>
   </div>
 
   <div id="tab-list" class="tab-content active">
@@ -528,6 +568,56 @@
 <div class="sheet" id="info-sheet">
   <div class="sheet-handle"></div>
   <div id="info-sheet-body"></div>
+</div>
+
+<!-- ヘルプシート -->
+<div class="sheet" id="help-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">使用上の注意</div>
+  <div class="help-body">
+    <section>
+      <h3>データの保存について</h3>
+      <p>このアプリはデータをお使いの<strong>ブラウザ内（ローカルストレージ）</strong>に保存しています。サーバーへの送信は一切ありません。他人と個別データは共有されません。</p>
+    </section>
+    <section>
+      <h3>消えないケース</h3>
+      <ul>
+        <li>ブラウザ・アプリを閉じて再度開く</li>
+        <li>スマホを再起動する</li>
+        <li>アプリが更新される</li>
+        <li>インターネット接続が切れる</li>
+      </ul>
+    </section>
+    <section>
+      <h3>消えるケース</h3>
+      <ul>
+        <li>ブラウザの「閲覧データを消去」→「サイトデータ」を削除したとき</li>
+        <li>ブラウザをアンインストールしたとき</li>
+        <li>スマホのストレージ不足でOSがデータを削除したとき</li>
+        <li>Safariは<strong>7日間アクセスがない</strong>と自動削除されることがあります</li>
+      </ul>
+    </section>
+    <section>
+      <h3>注意点</h3>
+      <ul>
+        <li>プライベートブラウジング（シークレットモード）ではタブを閉じるとデータが消えます</li>
+        <li>別のブラウザやスマホからは同じデータを見ることができません（ChromeとSafariでもデータは別々です）</li>
+        <li>機種変更時はデータが引き継がれません</li>
+      </ul>
+    </section>
+    <section>
+      <h3>ホーム画面への追加（推奨）</h3>
+      <p>ブラウザからホーム画面に追加するとアプリのように使えます。</p>
+      <p><strong>Safariの場合：</strong><br>
+      アプリページで「…」（三点リーダー）→「共有」→「ホーム画面に追加」<br>
+      「Webアプリとして開く」はオン推奨</p>
+    </section>
+    <section>
+      <h3>テンプレートの編集</h3>
+      <p>テンプレートはGoogleスプレッドシートで管理しています。記入方法は「使い方」シートを参照してください。</p>
+      <a class="help-sheet-link" href="https://docs.google.com/spreadsheets/d/e/2PACX-1vTggFXH7MtSvRiMVYU4OpNcysr7TqKV2poVcg7A5G6Q51hObqz_tOwdtz7Lt6xNtyvcFz-nLTaH880D/pub" target="_blank" rel="noopener">スプレッドシートを開く →</a>
+    </section>
+  </div>
 </div>
 
 <!-- 退院日編集シート -->
@@ -1221,6 +1311,13 @@ function closeAllSheets() {
   document.getElementById('reg-sheet').classList.remove('open');
   document.getElementById('info-sheet').classList.remove('open');
   document.getElementById('discharge-sheet').classList.remove('open');
+  document.getElementById('help-sheet').classList.remove('open');
+}
+
+function openHelp() {
+  closeAllSheets();
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('help-sheet').classList.add('open');
 }
 
 // =====================================================
