@@ -101,6 +101,10 @@
     .nav-btn.active { color: var(--accent); border-top-color: var(--accent); }
 
     /* ===== PATIENT CARD ===== */
+    .patient-card.completed {
+      opacity: 0.45;
+      filter: grayscale(0.4);
+    }
     .patient-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -140,6 +144,22 @@
     }
     .fab:active { opacity: 0.8; }
     .fab.hidden { display: none; }
+    .fab-delete {
+      position: fixed;
+      bottom: 68px;
+      left: max(16px, calc(50% - 304px));
+      background: rgba(239,68,68,0.15);
+      color: #f87171;
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 28px;
+      padding: 13px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      z-index: 80;
+    }
+    .fab-delete:active { opacity: 0.7; }
+    .fab-delete.hidden { display: none; }
 
     /* ===== TASK ITEM ===== */
     .task-item {
@@ -589,6 +609,7 @@
   </div>
 
   <button class="fab" id="fab" onclick="openRegModal()">＋ 新規登録</button>
+  <button class="fab-delete" id="fab-delete" onclick="deleteCompletedPatients()">完了患者を削除</button>
 
   <nav class="bottom-nav">
     <button class="nav-btn active" id="nav-list" onclick="switchTab('list',this)">
@@ -1230,6 +1251,7 @@ function switchTab(tab, btn) {
     document.getElementById('nav-' + t)?.classList.toggle('active', t === tab);
   });
   document.getElementById('fab').classList.toggle('hidden', tab !== 'list');
+  if (tab !== 'list') document.getElementById('fab-delete').classList.add('hidden');
   if (tab === 'list')   renderList();
   if (tab === 'today')  renderToday();
   if (tab === 'free')   renderFree();
@@ -1244,15 +1266,23 @@ function renderList() {
   const el = document.getElementById('patient-list');
   if (!patients.length) {
     el.innerHTML = `<div class="empty"><div class="empty-icon">🏥</div>患者が登録されていません<br>「＋ 新規登録」から追加してください</div>`;
+    document.getElementById('fab-delete').classList.add('hidden');
     return;
   }
-  el.innerHTML = [...patients].sort((a, b) => a.admitDate.localeCompare(b.admitDate)).map(p => {
+  const sorted = [...patients].sort((a, b) => {
+    const aComplete = progressOf(a.tasks).pct === 100;
+    const bComplete = progressOf(b.tasks).pct === 100;
+    if (aComplete !== bComplete) return aComplete ? 1 : -1;
+    return a.admitDate.localeCompare(b.admitDate);
+  });
+  el.innerHTML = sorted.map(p => {
     const tmplName = TEMPLATES[p.template]?.name || p.template;
     const { total, done, pct } = progressOf(p.tasks);
+    const complete = pct === 100;
     const dateRange = p.dischargeDate
       ? `${fmtDate(p.admitDate)} 〜 ${fmtDate(p.dischargeDate)}`
       : `${fmtDate(p.admitDate)} 〜 <span class="tbd-badge">退院日未定</span>`;
-    return `<div class="patient-card" onclick="openDetail('${p.id}')">
+    return `<div class="patient-card${complete ? ' completed' : ''}" onclick="openDetail('${p.id}')">
       <div class="patient-memo">${esc(p.memo)}</div>
       <div class="patient-sub">${esc(tmplName)}</div>
       <div class="patient-dates">${dateRange}</div>
@@ -1262,6 +1292,18 @@ function renderList() {
       </div>
     </div>`;
   }).join('');
+  const hasCompleted = sorted.some(p => progressOf(p.tasks).pct === 100);
+  document.getElementById('fab-delete').classList.toggle('hidden', !hasCompleted);
+}
+
+function deleteCompletedPatients() {
+  const data = loadData();
+  const count = data.patients.filter(p => progressOf(p.tasks).pct === 100).length;
+  if (!confirm(`完了済み患者 ${count}名 を削除しますか？`)) return;
+  data.patients = data.patients.filter(p => progressOf(p.tasks).pct !== 100);
+  if (data.patients.every(p => p.id !== currentPatientId)) currentPatientId = null;
+  saveData(data);
+  refreshAll();
 }
 
 // =====================================================
