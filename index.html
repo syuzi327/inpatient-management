@@ -929,7 +929,7 @@ function calcDate(admitDate, dischargeDate, t) {
   if (t.type === 'pre')   return null;
   if (t.day >= 1)         return dateAdd(admitDate, t.day - 1); // day=1 → 入院日
   if (t.day === 0)        return dateAdd(admitDate, -1);         // day=0 → 入院前日
-  if (!dischargeDate)     return null;
+  if (!dischargeDate)     return '';                              // 退院日未定：日付なしで表示
   if (t.day === -1)       return dateAdd(dischargeDate, -1);     // 退院前日
   if (t.day === -0.1)     return dischargeDate;                  // 退院当日
   return null;
@@ -1047,6 +1047,7 @@ function renderDetail() {
     (dayMap[t.date] = dayMap[t.date] || []).push(t);
   });
   const sortedDates = Object.keys(dayMap).sort();
+  const tbdTasks = p.tasks.filter(t => t.type === 'day' && t.date === '');
 
   function dayLabel(date) {
     if (date === p.admitDate)                    return '入院日';
@@ -1089,6 +1090,19 @@ function renderDetail() {
       ${dayMap[date].map(t => taskItem(t, p.id)).join('')}
     </div>`;
   });
+  if (tbdTasks.length) {
+    const tbdByLabel = {};
+    tbdTasks.forEach(t => {
+      const lbl = t.day === -0.1 ? '退院当日' : t.day === -1 ? '退院前日' : `退院day${t.day}`;
+      (tbdByLabel[lbl] = tbdByLabel[lbl] || []).push(t);
+    });
+    Object.entries(tbdByLabel).forEach(([lbl, tasks]) => {
+      html += `<div class="date-box">
+        <div class="sec-hd"><span class="tbd-badge" style="font-size:12px">退院日未定</span> <span class="sec-pill">${lbl}</span></div>
+        ${tasks.map(t => taskItem(t, p.id)).join('')}
+      </div>`;
+    });
+  }
   html += `<button class="delete-btn" onclick="deletePatient('${p.id}')">この患者を削除</button>`;
   el.innerHTML = html;
 }
