@@ -797,16 +797,25 @@ async function fetchTemplates(force = false) {
 
     const newTemplates = {};
     const newTaskInfo  = {};
+    const errors       = [];
 
     // 2. テンプレートシートを並列取得
     await Promise.all(idxRows.map(async row => {
       const { template_key: key, template_name: name, gid } = row;
       if (!key || !gid) return;
       try {
-        const tRes = await fetch(templateSheetUrl(SHEET_URL, gid), { redirect: 'follow' });
-        if (!tRes.ok) return;
-        // 列：type / day / title / cat / why / how
+        const url  = templateSheetUrl(SHEET_URL, gid);
+        const tRes = await fetch(url, { redirect: 'follow' });
+        if (!tRes.ok) {
+          errors.push(`「${name || key}」: HTTP ${tRes.status}`);
+          return;
+        }
         const tRows = parseCSV(await tRes.text());
+        // ヘッダー確認
+        if (!tRows.length || !('title' in tRows[0])) {
+          errors.push(`「${name || key}」: ヘッダー行が正しくありません（type,day,title,cat,why,how）`);
+          return;
+        }
         newTemplates[key] = {
           name: name || key,
           tasks: tRows
@@ -817,14 +826,13 @@ async function fetchTemplates(force = false) {
               return t;
             }),
         };
-        // why / how をTASK_INFOに反映
         tRows.forEach(r => {
           if (r.title && (r.why || r.how)) {
             newTaskInfo[r.title] = { why: r.why || '', how: r.how || '' };
           }
         });
       } catch (e) {
-        console.warn(`テンプレート「${key}」取得失敗`, e);
+        errors.push(`「${name || key}」: ${e.message}`);
       }
     }));
 
@@ -833,6 +841,10 @@ async function fetchTemplates(force = false) {
       Object.assign(TASK_INFO, newTaskInfo);
       localStorage.setItem(TMPL_CACHE_KEY, JSON.stringify({ templates: newTemplates, taskInfo: newTaskInfo }));
       localStorage.setItem(TMPL_CACHE_TIME, Date.now().toString());
+    }
+    if (errors.length) {
+      console.warn('一部テンプレート取得失敗', errors);
+      if (force) alert(`以下のテンプレートが読み込めませんでした：\n\n${errors.join('\n')}`);
     }
   } catch (e) {
     console.warn('テンプレート取得失敗', e);
@@ -844,10 +856,8 @@ async function fetchTemplates(force = false) {
 
 async function forceRefreshTemplates() {
   await fetchTemplates(true);
-  if (Object.keys(TEMPLATES).length) {
-    const names = Object.values(TEMPLATES).map(t => t.name).join('、');
-    alert(`テンプレートを更新しました。\n読み込み済み：${names}`);
-  }
+  const names = Object.values(TEMPLATES).map(t => t.name).join('、');
+  alert(`テンプレートを更新しました。\n読み込み済み：${names || 'なし（組み込みを使用）'}`);
 }
 
 function populateTemplateSelect() {
