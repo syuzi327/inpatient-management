@@ -240,6 +240,46 @@
       padding-top: 10px;
       border-top: 1px solid var(--border);
     }
+    .standalone-section {
+      margin-top: 24px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+    .standalone-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    .standalone-add-btn {
+      background: none;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      color: #60a5fa;
+      font-size: 13px;
+      padding: 4px 12px;
+      cursor: pointer;
+    }
+    .standalone-empty {
+      font-size: 13px;
+      color: #444;
+      text-align: center;
+      padding: 16px 0;
+    }
+    .standalone-del-btn {
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 14px;
+      padding: 4px 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .standalone-del-btn:active { color: #f87171; }
     .help-body {
       overflow-y: auto;
       max-height: 65vh;
@@ -511,6 +551,13 @@
   </div>
   <div id="tab-today" class="tab-content">
     <div id="today-content"></div>
+    <div class="standalone-section">
+      <div class="standalone-hd">
+        <span>フリータスク</span>
+        <button class="standalone-add-btn" onclick="openStandaloneSheet()">＋ 追加</button>
+      </div>
+      <div id="standalone-list"></div>
+    </div>
   </div>
   <div id="tab-detail" class="tab-content">
     <div id="detail-content"></div>
@@ -523,7 +570,7 @@
       <span class="nav-icon">🏥</span>患者一覧
     </button>
     <button class="nav-btn" id="nav-today" onclick="switchTab('today',this)">
-      <span class="nav-icon">📋</span>本日のタスク
+      <span class="nav-icon">📋</span>タスク
     </button>
     <button class="nav-btn" id="nav-detail" onclick="switchTab('detail',this)">
       <span class="nav-icon">👤</span>詳細
@@ -618,6 +665,33 @@
       <a class="help-sheet-link" href="https://docs.google.com/spreadsheets/d/e/2PACX-1vTggFXH7MtSvRiMVYU4OpNcysr7TqKV2poVcg7A5G6Q51hObqz_tOwdtz7Lt6xNtyvcFz-nLTaH880D/pub" target="_blank" rel="noopener">スプレッドシートを開く →</a>
     </section>
   </div>
+</div>
+
+<!-- フリータスク追加シート -->
+<div class="sheet" id="standalone-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">フリータスクを追加</div>
+  <form id="standalone-form" onsubmit="submitStandalone(event)">
+    <div class="form-group">
+      <label class="form-label">タスク名 *</label>
+      <input type="text" id="st-title" class="form-input" placeholder="タスク内容を入力" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">日付（任意）</label>
+      <input type="date" id="st-date" class="form-input" oninput="updateDow('st-date','st-date-dow')">
+      <div class="date-dow" id="st-date-dow"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">カテゴリ（任意）</label>
+      <select id="st-cat" class="form-select">
+        <option value="">未分類</option>
+        <option>検査</option><option>処置</option><option>投薬</option>
+        <option>看護</option><option>書類</option><option>説明</option>
+        <option>食事</option><option>リハビリ</option><option>連絡</option><option>その他</option>
+      </select>
+    </div>
+    <button type="submit" class="form-submit">追加</button>
+  </form>
 </div>
 
 <!-- 退院日編集シート -->
@@ -998,8 +1072,12 @@ function updateDow(inputId, dowId) {
 // ストレージ
 // =====================================================
 function loadData() {
-  try { return JSON.parse(localStorage.getItem('admtasks') || '{"patients":[]}'); }
-  catch { return { patients: [] }; }
+  try {
+    const d = JSON.parse(localStorage.getItem('admtasks') || '{"patients":[]}');
+    if (!d.standaloneTasks) d.standaloneTasks = [];
+    return d;
+  }
+  catch { return { patients: [], standaloneTasks: [] }; }
 }
 function saveData(d) { localStorage.setItem('admtasks', JSON.stringify(d)); }
 
@@ -1103,25 +1181,90 @@ function renderList() {
 }
 
 // =====================================================
-// 本日のタスク
+// タスクタブ
 // =====================================================
 function renderToday() {
-  const { patients } = loadData();
+  const { patients, standaloneTasks } = loadData();
   const t = today();
   const el = document.getElementById('today-content');
   const groups = patients
     .map(p => ({ p, tasks: p.tasks.filter(tk => tk.date === t) }))
     .filter(g => g.tasks.length);
   if (!groups.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">✅</div>今日のタスクはありません</div>`;
+    el.innerHTML = `<div class="empty"><div class="empty-icon">✅</div>今日の患者タスクはありません</div>`;
+  } else {
+    el.innerHTML = groups.map(g =>
+      `<div class="today-group">
+        <div class="today-group-hd">${esc(g.p.memo)}</div>
+        ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
+      </div>`
+    ).join('');
+  }
+  renderStandaloneList(standaloneTasks);
+}
+
+function renderStandaloneList(standaloneTasks) {
+  const el = document.getElementById('standalone-list');
+  if (!standaloneTasks.length) {
+    el.innerHTML = `<div class="standalone-empty">フリータスクはありません</div>`;
     return;
   }
-  el.innerHTML = groups.map(g =>
-    `<div class="today-group">
-      <div class="today-group-hd">${esc(g.p.memo)}</div>
-      ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
-    </div>`
-  ).join('');
+  const sorted = [...standaloneTasks].sort((a, b) => {
+    if (a.date && b.date) return a.date.localeCompare(b.date);
+    if (a.date) return -1;
+    if (b.date) return 1;
+    return 0;
+  });
+  el.innerHTML = sorted.map(tk => standaloneTaskItem(tk)).join('');
+}
+
+function standaloneTaskItem(tk) {
+  const cat = CAT[tk.cat] || (tk.cat ? { label: tk.cat, cls: '' } : null);
+  const dateStr = tk.date ? `<span style="font-size:11px;color:#888;margin-right:6px">${fmtDate(tk.date)}</span>` : '';
+  return `<div class="task-item${tk.done ? ' done' : ''}" id="sti-${tk.id}">
+    <div class="chk${tk.done ? ' checked' : ''}" onclick="toggleStandalone('${tk.id}')"></div>
+    <div class="task-body" style="flex:1">
+      <div class="task-title">${dateStr}${esc(tk.title)}</div>
+    </div>
+    ${cat ? `<span class="badge ${cat.cls}">${cat.label}</span>` : ''}
+    <button class="standalone-del-btn" onclick="deleteStandalone('${tk.id}')">✕</button>
+  </div>`;
+}
+
+function openStandaloneSheet() {
+  closeAllSheets();
+  document.getElementById('standalone-form').reset();
+  document.getElementById('st-date-dow').textContent = '';
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('standalone-sheet').classList.add('open');
+}
+
+function submitStandalone(e) {
+  e.preventDefault();
+  const title = document.getElementById('st-title').value.trim();
+  const date  = document.getElementById('st-date').value;
+  const cat   = document.getElementById('st-cat').value;
+  if (!title) return;
+  const data = loadData();
+  data.standaloneTasks.push({ id: uid(), title, date, cat, done: false });
+  saveData(data);
+  closeAllSheets();
+  renderStandaloneList(data.standaloneTasks);
+}
+
+function toggleStandalone(taskId) {
+  const data = loadData();
+  const tk = data.standaloneTasks.find(t => t.id === taskId);
+  if (tk) tk.done = !tk.done;
+  saveData(data);
+  renderStandaloneList(data.standaloneTasks);
+}
+
+function deleteStandalone(taskId) {
+  const data = loadData();
+  data.standaloneTasks = data.standaloneTasks.filter(t => t.id !== taskId);
+  saveData(data);
+  renderStandaloneList(data.standaloneTasks);
 }
 
 // =====================================================
@@ -1312,6 +1455,7 @@ function closeAllSheets() {
   document.getElementById('info-sheet').classList.remove('open');
   document.getElementById('discharge-sheet').classList.remove('open');
   document.getElementById('help-sheet').classList.remove('open');
+  document.getElementById('standalone-sheet').classList.remove('open');
 }
 
 function openHelp() {
