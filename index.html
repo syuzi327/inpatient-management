@@ -1637,12 +1637,12 @@ function openTaskInfo(title, catKey) {
 
   if (info) {
     html += `<div class="info-block">
-      <div class="info-block-label why">🔍 なぜ行うのか</div>
-      <div class="info-block-body">${esc(info.why)}</div>
-    </div>
-    <div class="info-block">
       <div class="info-block-label how">✅ どのように行うか / Tips</div>
       <div class="info-block-body">${esc(info.how)}</div>
+    </div>
+    <div class="info-block">
+      <div class="info-block-label why">🔍 なぜ行うのか</div>
+      <div class="info-block-body">${esc(info.why)}</div>
     </div>`;
   } else {
     html += `<div class="info-no-data">このタスクの解説はまだありません</div>`;
