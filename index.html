@@ -1006,29 +1006,39 @@ const TMPL_CACHE_TIME = 'tmpl_cache_time';
 const CACHE_TTL_MS    = 60 * 60 * 1000; // 1時間
 
 function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  const headers = splitCSVLine(lines[0]);
-  return lines.slice(1)
-    .filter(l => l.trim())
-    .map(l => {
-      const vals = splitCSVLine(l);
+  const rows = splitCSVRows(text.trim());
+  if (!rows.length) return [];
+  const headers = rows[0].map(h => h.trim());
+  return rows.slice(1)
+    .filter(r => r.some(v => v.trim()))
+    .map(vals => {
       const obj = {};
-      headers.forEach((h, i) => obj[h.trim()] = (vals[i] || '').trim());
+      headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
       return obj;
     });
 }
 
-function splitCSVLine(line) {
-  const result = [];
-  let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') { inQ = !inQ; }
-    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
-    else { cur += c; }
+function splitCSVRows(text) {
+  const rows = [];
+  let row = [], cur = '', inQ = false, i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQ && text[i + 1] === '"') { cur += '"'; i += 2; continue; } // エスケープ ""
+      inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      row.push(cur); cur = '';
+    } else if ((c === '\n' || (c === '\r' && text[i + 1] === '\n')) && !inQ) {
+      if (c === '\r') i++;
+      row.push(cur); rows.push(row); row = []; cur = '';
+    } else {
+      cur += c;
+    }
+    i++;
   }
-  result.push(cur);
-  return result;
+  row.push(cur);
+  if (row.some(v => v.trim())) rows.push(row);
+  return rows;
 }
 
 // ベースURLのgidパラメータだけ差し替えてテンプレートシートURLを生成
