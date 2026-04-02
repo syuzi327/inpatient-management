@@ -1262,7 +1262,7 @@ function renderStandaloneList(standaloneTasks) {
 
   // 患者ごとの事前タスク
   const preGroups = patients
-    .map(p => ({ p, tasks: p.tasks.filter(tk => tk.type === 'pre') }))
+    .map(p => ({ p, tasks: p.tasks.filter(tk => tk.type === 'pre' && !tk.done) }))
     .filter(g => g.tasks.length);
 
   let html = '';
