@@ -1013,7 +1013,7 @@ function parseCSV(text) {
     .filter(r => r.some(v => v.trim()))
     .map(vals => {
       const obj = {};
-      headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
+      headers.forEach((h, i) => obj[h] = (vals[i] || '').trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
       return obj;
     });
 }
