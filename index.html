@@ -271,6 +271,13 @@
       padding: 12px 12px 6px;
       margin-bottom: 20px;
     }
+    .post-box {
+      background: rgba(52,211,153,0.06);
+      border: 1px solid rgba(52,211,153,0.2);
+      border-radius: 12px;
+      padding: 12px 12px 6px;
+      margin-bottom: 20px;
+    }
     .date-box { margin-bottom: 20px; }
     .delete-btn {
       display: block;
@@ -1041,7 +1048,8 @@ function renderDetail() {
   const tmplMemo = TEMPLATES[p.template]?.memo || '';
   const { total, done, pct } = progressOf(p.tasks);
 
-  const preTasks = p.tasks.filter(t => t.type === 'pre');
+  const preTasks  = p.tasks.filter(t => t.type === 'pre');
+  const postTasks = p.tasks.filter(t => t.type === 'post');
   const dayMap = {};
   p.tasks.filter(t => t.type === 'day' && t.date).forEach(t => {
     (dayMap[t.date] = dayMap[t.date] || []).push(t);
@@ -1102,6 +1110,12 @@ function renderDetail() {
         ${tasks.map(t => taskItem(t, p.id)).join('')}
       </div>`;
     });
+  }
+  if (postTasks.length) {
+    html += `<div class="post-box">
+      <div class="sec-hd">退院後タスク <span class="sec-pill">退院後</span></div>
+      ${postTasks.map(t => taskItem(t, p.id)).join('')}
+    </div>`;
   }
   html += `<button class="delete-btn" onclick="deletePatient('${p.id}')">この患者を削除</button>`;
   el.innerHTML = html;
