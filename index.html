@@ -893,11 +893,17 @@ function uid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
-function today() { return new Date().toISOString().slice(0, 10); }
+function today() {
+  const d = new Date();
+  return localDateStr(d);
+}
 function dateAdd(dateStr, days) {
-  const d = new Date(dateStr + 'T00:00:00');
+  const d = new Date(dateStr + 'T12:00:00'); // 正午で生成してタイムゾーンずれを防ぐ
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return localDateStr(d);
+}
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function fmtDate(dateStr) {
   if (!dateStr) return '';
