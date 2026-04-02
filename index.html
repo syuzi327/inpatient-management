@@ -1308,24 +1308,6 @@ function renderToday() {
   const el = document.getElementById('today-content');
   let html = '';
 
-  // 入院前日リマインダー（明日入院で事前タスク未完了）
-  const reminderGroups = patients
-    .map(p => ({
-      p,
-      tasks: p.tasks.filter(tk => tk.type === 'pre' && !tk.done && dateAdd(p.admitDate, -1) === t)
-    }))
-    .filter(g => g.tasks.length);
-  if (reminderGroups.length) {
-    html += `<div class="overdue-section" style="background:rgba(251,191,36,0.07);border-color:rgba(251,191,36,0.3)">
-      <div class="overdue-section-hd" style="color:#fbbf24">⏰ 明日入院・事前タスク未完了</div>
-      ${reminderGroups.map(g => `
-        <div class="overdue-group">
-          <div class="today-group-hd">${esc(g.p.memo)}</div>
-          ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
-        </div>`).join('')}
-    </div>`;
-  }
-
   // 期限切れ未完了タスク（患者タスク + standalone）
   const overduePatientGroups = patients
     .map(p => ({
@@ -1348,6 +1330,24 @@ function renderToday() {
           ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
         </div>`).join('')}
       ${overdueStandalone.map(tk => standaloneTaskItem(tk)).join('')}
+    </div>`;
+  }
+
+  // 入院前日リマインダー（明日入院で事前タスク未完了）
+  const reminderGroups = patients
+    .map(p => ({
+      p,
+      tasks: p.tasks.filter(tk => tk.type === 'pre' && !tk.done && dateAdd(p.admitDate, -1) === t)
+    }))
+    .filter(g => g.tasks.length);
+  if (reminderGroups.length) {
+    html += `<div class="overdue-section" style="background:rgba(251,191,36,0.07);border-color:rgba(251,191,36,0.3)">
+      <div class="overdue-section-hd" style="color:#fbbf24">⏰ 明日入院・事前タスク未完了</div>
+      ${reminderGroups.map(g => `
+        <div class="overdue-group">
+          <div class="today-group-hd">${esc(g.p.memo)}</div>
+          ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
+        </div>`).join('')}
     </div>`;
   }
 
