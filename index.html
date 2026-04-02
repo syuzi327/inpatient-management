@@ -236,6 +236,17 @@
       padding-top: 10px;
       border-top: 1px solid var(--border);
     }
+    .tmpl-memo {
+      font-size: 13px;
+      color: #ccc;
+      background: #1e2a3a;
+      border-left: 3px solid #4a9eff;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-top: 10px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
     .sec-hd {
       display: flex;
       align-items: center;
@@ -801,7 +812,7 @@ async function fetchTemplates(force = false) {
 
     // 2. テンプレートシートを並列取得
     await Promise.all(idxRows.map(async row => {
-      const { template_key: key, template_name: name, gid } = row;
+      const { template_key: key, template_name: name, gid, memo: tmplMemo } = row;
       if (!key || !gid) return;
       try {
         const url  = templateSheetUrl(SHEET_URL, gid);
@@ -818,6 +829,7 @@ async function fetchTemplates(force = false) {
         }
         newTemplates[key] = {
           name: name || key,
+          memo: tmplMemo || '',
           tasks: tRows
             .filter(r => r.title)
             .map(r => {
@@ -1026,6 +1038,7 @@ function renderDetail() {
   if (!p) { el.innerHTML = `<div class="empty">患者が見つかりません</div>`; return; }
 
   const tmplName = TEMPLATES[p.template]?.name || p.template;
+  const tmplMemo = TEMPLATES[p.template]?.memo || '';
   const { total, done, pct } = progressOf(p.tasks);
 
   const preTasks = p.tasks.filter(t => t.type === 'pre');
@@ -1057,6 +1070,7 @@ function renderDetail() {
       <button class="edit-date-btn" onclick="openEditDischarge('${p.id}')">退院日を変更</button>
     </div>
     ${p.note ? `<div class="detail-note">${esc(p.note)}</div>` : ''}
+    ${tmplMemo ? `<div class="tmpl-memo">${esc(tmplMemo)}</div>` : ''}
     <div class="prog-wrap">
       <div class="prog-bg"><div class="prog-fill" style="width:${pct}%"></div></div>
       <div class="prog-text">${done} / ${total} タスク完了 (${pct}%)</div>
