@@ -1467,7 +1467,8 @@ function toggleStandalone(taskId) {
   const tk = data.standaloneTasks.find(t => t.id === taskId);
   if (tk) tk.done = !tk.done;
   saveData(data);
-  renderStandaloneList(data.standaloneTasks);
+  if (currentTab === 'today') renderToday();
+  else renderStandaloneList(data.standaloneTasks);
 }
 
 function deleteStandalone(taskId) {
