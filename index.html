@@ -1690,10 +1690,11 @@ function openHelp() {
 let editingPatientId = null;
 
 function openEditDischarge(patientId) {
-  editingPatientId = patientId;
   const { patients } = loadData();
   const p = patients.find(x => x.id === patientId);
-  document.getElementById('edit-discharge').value = p?.dischargeDate || '';
+  if (!p) return;
+  editingPatientId = patientId;
+  document.getElementById('edit-discharge').value = p.dischargeDate || '';
   updateDow('edit-discharge', 'edit-discharge-dow');
   document.getElementById('overlay').classList.add('open');
   document.getElementById('discharge-sheet').classList.add('open');
