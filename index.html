@@ -994,7 +994,7 @@ function renderList() {
     el.innerHTML = `<div class="empty"><div class="empty-icon">🏥</div>患者が登録されていません<br>「＋ 新規登録」から追加してください</div>`;
     return;
   }
-  el.innerHTML = patients.map(p => {
+  el.innerHTML = [...patients].sort((a, b) => a.admitDate.localeCompare(b.admitDate)).map(p => {
     const tmplName = TEMPLATES[p.template]?.name || p.template;
     const { total, done, pct } = progressOf(p.tasks);
     const dateRange = p.dischargeDate
