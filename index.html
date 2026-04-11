@@ -1264,11 +1264,25 @@ function renderList() {
     document.getElementById('fab-delete').classList.add('hidden');
     return;
   }
+  const t = today();
   const sorted = [...patients].sort((a, b) => {
     const aComplete = progressOf(a.tasks).pct === 100;
     const bComplete = progressOf(b.tasks).pct === 100;
-    if (aComplete !== bComplete) return aComplete ? 1 : -1;
-    return a.admitDate.localeCompare(b.admitDate);
+    const aDischarged = a.dischargeDate && a.dischargeDate <= t;
+    const bDischarged = b.dischargeDate && b.dischargeDate <= t;
+
+    // グループ分け: 0=入院中, 1=退院済み未完了, 2=100%完了
+    const grp = p => {
+      if (progressOf(p.tasks).pct === 100) return 2;
+      if (p.dischargeDate && p.dischargeDate <= t) return 1;
+      return 0;
+    };
+    const ag = grp(a), bg = grp(b);
+    if (ag !== bg) return ag - bg;
+
+    if (ag === 0) return a.admitDate.localeCompare(b.admitDate);       // 入院中: 入院日昇順
+    if (ag === 1) return a.dischargeDate.localeCompare(b.dischargeDate); // 退院済み未完了: 退院日昇順
+    return b.dischargeDate.localeCompare(a.dischargeDate);              // 100%完了: 退院日降順
   });
   el.innerHTML = sorted.map(p => {
     const tmplName = TEMPLATES[p.template]?.name || p.template;
