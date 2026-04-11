@@ -514,6 +514,56 @@
       padding: 1px 8px;
     }
 
+    /* ===== KARTE BADGE (patient card) ===== */
+    .karte-btn {
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, opacity 0.15s;
+      white-space: nowrap;
+    }
+    .karte-btn.done  { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.1); }
+    .karte-btn.undone{ border-color: #f87171; color: #f87171; background: rgba(239,68,68,0.08); }
+    .karte-btn:active { opacity: 0.6; }
+
+    /* ===== KARTE SUMMARY (header) ===== */
+    .karte-summary {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      transition: color 0.2s;
+    }
+    .karte-summary.all-done  { color: var(--text-muted); }
+    .karte-summary.has-undone{ color: #f87171; background: rgba(239,68,68,0.1); }
+
+    /* ===== KARTE HISTORY (detail) ===== */
+    .karte-history {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .karte-history-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .karte-dots { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+    .karte-dot {
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .karte-dot.done   { background: #22c55e; }
+    .karte-dot.undone { background: #3a3a3a; border: 1px solid #555; }
+    .karte-dot.karte-dot-today { outline: 2px solid #60a5fa; outline-offset: 1px; }
+
     /* ===== TASK INFO SHEET ===== */
     .info-sheet-badge-row {
       display: flex;
@@ -563,7 +613,10 @@
 <body>
 <div id="app">
   <div class="app-header">
-    <span>入院タスク管理</span>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span>入院タスク管理</span>
+      <span id="karte-summary" class="karte-summary"></span>
+    </div>
     <div style="display:flex;gap:8px">
       <button class="header-refresh-btn" id="refresh-btn" onclick="forceRefreshTemplates()" title="テンプレートを最新化">
         <span id="refresh-icon">↻</span>
@@ -1232,6 +1285,78 @@ function progressOf(tasks) {
 }
 
 // =====================================================
+// カルテ記録ユーティリティ
+// =====================================================
+function isWeekday(dateStr) {
+  const dow = new Date(dateStr + 'T00:00:00').getDay();
+  return dow !== 0 && dow !== 6;
+}
+function isActivePatient(p, t) {
+  if (progressOf(p.tasks).pct === 100) return false;
+  if (p.dischargeDate && p.dischargeDate <= t) return false;
+  return true;
+}
+function pruneKarteLog(log) {
+  if (!log) return {};
+  const cutoff = dateAdd(today(), -30);
+  const out = {};
+  for (const [d, v] of Object.entries(log)) { if (d >= cutoff) out[d] = v; }
+  return out;
+}
+function toggleKarte(patientId, e) {
+  e.stopPropagation();
+  const data = loadData();
+  const p = data.patients.find(x => x.id === patientId);
+  if (!p) return;
+  if (!p.karteLog) p.karteLog = {};
+  const t = today();
+  p.karteLog[t] = !p.karteLog[t];
+  p.karteLog = pruneKarteLog(p.karteLog);
+  saveData(data);
+  renderList();
+  if (currentPatientId === patientId) renderDetail();
+}
+function updateKarteSummary() {
+  const el = document.getElementById('karte-summary');
+  if (!el) return;
+  const t = today();
+  if (!isWeekday(t)) { el.textContent = ''; el.className = 'karte-summary'; return; }
+  const { patients } = loadData();
+  const active = patients.filter(p => isActivePatient(p, t));
+  if (!active.length) { el.textContent = ''; el.className = 'karte-summary'; return; }
+  const done = active.filter(p => p.karteLog?.[t]).length;
+  el.textContent = `カルテ ${done}/${active.length}`;
+  el.className   = 'karte-summary ' + (done === active.length ? 'all-done' : 'has-undone');
+}
+function karteHistoryHtml(p, t) {
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = dateAdd(t, -i);
+    if (!isWeekday(d) || d < p.admitDate) continue;
+    days.push(d);
+  }
+  if (!days.length) return '';
+  const dotsHtml = days.map(d => {
+    const done    = !!(p.karteLog?.[d]);
+    const isToday = d === t;
+    const cls     = 'karte-dot' + (done ? ' done' : ' undone') + (isToday ? ' karte-dot-today' : '');
+    return `<div class="${cls}" title="${fmtDate(d)}"></div>`;
+  }).join('');
+  const isActive  = isActivePatient(p, t);
+  const karteDone = !!(p.karteLog?.[t]);
+  const todayBtn  = (isActive && isWeekday(t))
+    ? `<button class="karte-btn ${karteDone ? 'done' : 'undone'}" onclick="toggleKarte('${p.id}',event)" style="margin-top:8px;font-size:12px">
+        本日カルテ：${karteDone ? '記載済 ✓' : '未記載'}
+       </button>`
+    : '';
+  return `<div class="karte-history">
+    <div class="karte-history-label">カルテ記録（直近の平日）</div>
+    <div class="karte-dots">${dotsHtml}</div>
+    ${todayBtn}
+  </div>`;
+}
+
+// =====================================================
 // タブ切替
 // =====================================================
 let currentTab = 'list';
@@ -1285,15 +1410,25 @@ function renderList() {
     return b.dischargeDate.localeCompare(a.dischargeDate);              // 100%完了: 退院日降順
   });
   el.innerHTML = sorted.map(p => {
-    const tmplName = TEMPLATES[p.template]?.name || p.template;
+    const tmplName  = TEMPLATES[p.template]?.name || p.template;
     const { total, done, pct } = progressOf(p.tasks);
-    const complete = pct === 100;
+    const complete  = pct === 100;
     const dateRange = p.dischargeDate
       ? `${fmtDate(p.admitDate)} 〜 ${fmtDate(p.dischargeDate)}`
       : `${fmtDate(p.admitDate)} 〜 <span class="tbd-badge">退院日未定</span>`;
+    const showKarte = isActivePatient(p, t) && isWeekday(t);
+    const karteDone = showKarte && !!(p.karteLog?.[t]);
+    const karteBadge = showKarte
+      ? `<button class="karte-btn ${karteDone ? 'done' : 'undone'}" onclick="toggleKarte('${p.id}',event)">${karteDone ? 'カルテ済' : 'カルテ未'}</button>`
+      : '';
     return `<div class="patient-card${complete ? ' completed' : ''}" onclick="openDetail('${p.id}')">
-      <div class="patient-memo">${esc(p.memo)}</div>
-      <div class="patient-sub">${esc(tmplName)}</div>
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div class="patient-memo">${esc(p.memo)}</div>
+          <div class="patient-sub">${esc(tmplName)}</div>
+        </div>
+        ${karteBadge}
+      </div>
       <div class="patient-dates">${dateRange}</div>
       <div class="prog-wrap">
         <div class="prog-bg"><div class="prog-fill" style="width:${pct}%"></div></div>
@@ -1303,6 +1438,7 @@ function renderList() {
   }).join('');
   const hasCompleted = sorted.some(p => progressOf(p.tasks).pct === 100);
   document.getElementById('fab-delete').classList.toggle('hidden', !hasCompleted);
+  updateKarteSummary();
 }
 
 function deleteCompletedStandalone() {
@@ -1569,6 +1705,7 @@ function renderDetail() {
     return `第${diff + 1}病日`;
   }
 
+  const t2 = today();
   const dischargePart = p.dischargeDate
     ? `${fmtDate(p.dischargeDate)}`
     : `<span class="tbd-badge">未定</span>`;
@@ -1585,6 +1722,7 @@ function renderDetail() {
       <div class="prog-bg"><div class="prog-fill" style="width:${pct}%"></div></div>
       <div class="prog-text">${done} / ${total} タスク完了 (${pct}%)</div>
     </div>
+    ${karteHistoryHtml(p, t2)}
   </div>`;
 
   if (preTasks.length) {
