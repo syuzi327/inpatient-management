@@ -564,6 +564,35 @@
     .karte-dot.undone { background: #3a3a3a; border: 1px solid #555; }
     .karte-dot.karte-dot-today { outline: 2px solid #60a5fa; outline-offset: 1px; }
 
+    /* ===== PATIENT GROUP HEADER ===== */
+    .patient-group-hd {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      padding-bottom: 8px;
+      margin-top: 20px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .patient-group-hd:first-child { margin-top: 0; }
+    .grp-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .grp-dot-admitted   { background: #60a5fa; }
+    .grp-dot-planned    { background: #f97316; }
+    .grp-dot-discharged { background: #6b7280; }
+    .grp-dot-complete   { background: #374151; }
+    .grp-count {
+      margin-left: auto;
+      font-size: 11px;
+      color: #555;
+      font-weight: 600;
+    }
+
     /* ===== TASK INFO SHEET ===== */
     .info-sheet-badge-row {
       display: flex;
@@ -1391,26 +1420,27 @@ function renderList() {
     return;
   }
   const t = today();
-  const sorted = [...patients].sort((a, b) => {
-    const aComplete = progressOf(a.tasks).pct === 100;
-    const bComplete = progressOf(b.tasks).pct === 100;
-    const aDischarged = a.dischargeDate && a.dischargeDate < t;
-    const bDischarged = b.dischargeDate && b.dischargeDate < t;
 
-    // グループ分け: 0=入院中（退院日当日含む）, 1=退院済み未完了, 2=100%完了
-    const grp = p => {
-      if (progressOf(p.tasks).pct === 100) return 2;
-      if (p.dischargeDate && p.dischargeDate < t) return 1;  // 退院翌日から退院グループ
-      return 0;
-    };
-    const ag = grp(a), bg = grp(b);
-    if (ag !== bg) return ag - bg;
+  const grpOf = p => {
+    if (progressOf(p.tasks).pct === 100) return 3;         // 完了
+    if (p.dischargeDate && p.dischargeDate < t) return 2;  // 退院済み（タスク未完了）
+    if (p.admitDate > t) return 1;                         // 入院予定
+    return 0;                                              // 入院中
+  };
 
-    if (ag === 0) return a.admitDate.localeCompare(b.admitDate);       // 入院中: 入院日昇順
-    if (ag === 1) return a.dischargeDate.localeCompare(b.dischargeDate); // 退院済み未完了: 退院日昇順
-    return b.dischargeDate.localeCompare(a.dischargeDate);              // 100%完了: 退院日降順
-  });
-  el.innerHTML = sorted.map(p => {
+  const groups = [
+    { label: '入院中',   dotCls: 'grp-dot-admitted',   patients: [] },
+    { label: '入院予定', dotCls: 'grp-dot-planned',    patients: [] },
+    { label: '退院済み', dotCls: 'grp-dot-discharged', patients: [] },
+    { label: '完了',     dotCls: 'grp-dot-complete',   patients: [] },
+  ];
+  patients.forEach(p => groups[grpOf(p)].patients.push(p));
+  groups[0].patients.sort((a, b) => a.admitDate.localeCompare(b.admitDate));
+  groups[1].patients.sort((a, b) => a.admitDate.localeCompare(b.admitDate));
+  groups[2].patients.sort((a, b) => a.dischargeDate.localeCompare(b.dischargeDate));
+  groups[3].patients.sort((a, b) => (b.dischargeDate || '').localeCompare(a.dischargeDate || ''));
+
+  const cardHtml = p => {
     const tmplName  = TEMPLATES[p.template]?.name || p.template;
     const { total, done, pct } = progressOf(p.tasks);
     const complete  = pct === 100;
@@ -1436,9 +1466,19 @@ function renderList() {
         <div class="prog-text">${done} / ${total} タスク完了 (${pct}%)</div>
       </div>
     </div>`;
-  }).join('');
-  const hasCompleted = sorted.some(p => progressOf(p.tasks).pct === 100);
-  document.getElementById('fab-delete').classList.toggle('hidden', !hasCompleted);
+  };
+
+  let html = '';
+  groups.forEach(g => {
+    if (!g.patients.length) return;
+    html += `<div class="patient-group-hd">
+      <span class="grp-dot ${g.dotCls}"></span>${g.label}
+      <span class="grp-count">${g.patients.length}名</span>
+    </div>`;
+    html += g.patients.map(cardHtml).join('');
+  });
+  el.innerHTML = html;
+  document.getElementById('fab-delete').classList.toggle('hidden', !groups[3].patients.length);
   updateKarteSummary();
 }
 
