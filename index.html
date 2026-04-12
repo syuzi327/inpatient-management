@@ -1293,7 +1293,8 @@ function isWeekday(dateStr) {
 }
 function isActivePatient(p, t) {
   if (progressOf(p.tasks).pct === 100) return false;
-  if (p.dischargeDate && p.dischargeDate <= t) return false;
+  if (p.admitDate > t) return false;                        // 未入院はカルテ不要
+  if (p.dischargeDate && p.dischargeDate < t) return false; // 退院翌日以降は非アクティブ
   return true;
 }
 function pruneKarteLog(log) {
@@ -1393,13 +1394,13 @@ function renderList() {
   const sorted = [...patients].sort((a, b) => {
     const aComplete = progressOf(a.tasks).pct === 100;
     const bComplete = progressOf(b.tasks).pct === 100;
-    const aDischarged = a.dischargeDate && a.dischargeDate <= t;
-    const bDischarged = b.dischargeDate && b.dischargeDate <= t;
+    const aDischarged = a.dischargeDate && a.dischargeDate < t;
+    const bDischarged = b.dischargeDate && b.dischargeDate < t;
 
-    // グループ分け: 0=入院中, 1=退院済み未完了, 2=100%完了
+    // グループ分け: 0=入院中（退院日当日含む）, 1=退院済み未完了, 2=100%完了
     const grp = p => {
       if (progressOf(p.tasks).pct === 100) return 2;
-      if (p.dischargeDate && p.dischargeDate <= t) return 1;
+      if (p.dischargeDate && p.dischargeDate < t) return 1;  // 退院翌日から退院グループ
       return 0;
     };
     const ag = grp(a), bg = grp(b);
