@@ -372,6 +372,17 @@
     .pre-box  { background: rgba(96,165,250,0.06); border: 1px solid rgba(96,165,250,0.2); }
     .post-box { background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.2); }
     .date-box { margin-bottom: 20px; }
+    .post-days-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(52,211,153,0.15);
+      color: #34d399;
+      border: 1px solid rgba(52,211,153,0.3);
+      padding: 1px 8px;
+      border-radius: 20px;
+      vertical-align: middle;
+    }
     .add-patient-task-btn {
       display: block;
       width: 100%;
@@ -1192,6 +1203,7 @@ async function fetchTemplates(force = false) {
             .map(r => {
               const t = { type: r.type, title: r.title, cat: r.cat };
               if (r.type === 'day') t.day = parseFloat(r.day);
+              if (r.type === 'post' && r.day !== '') t.day = parseFloat(r.day);
               return t;
             }),
         };
@@ -1288,13 +1300,23 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function calcDate(admitDate, dischargeDate, t) {
-  if (t.type === 'pre')   return null;
-  if (t.day >= 1)         return dateAdd(admitDate, t.day - 1); // day=1 → 入院日
-  if (t.day === 0)        return dateAdd(admitDate, -1);         // day=0 → 入院前日
-  if (!dischargeDate)     return '';                              // 退院日未定：日付なしで表示
-  if (t.day === -1)       return dateAdd(dischargeDate, -1);     // 退院前日
-  if (t.day === -0.1)     return dischargeDate;                  // 退院当日
+  if (t.type === 'pre')  return null;
+  if (t.type === 'post') {
+    if (t.day == null) return null;       // 日付なし post タスク
+    if (!dischargeDate) return '';        // 退院日未定
+    return dateAdd(dischargeDate, t.day); // 退院日 +N日後
+  }
+  if (t.day >= 1)        return dateAdd(admitDate, t.day - 1); // day=1 → 入院日
+  if (t.day === 0)       return dateAdd(admitDate, -1);         // day=0 → 入院前日
+  if (!dischargeDate)    return '';                              // 退院日未定：日付なしで表示
+  if (t.day === -1)      return dateAdd(dischargeDate, -1);     // 退院前日
+  if (t.day === -0.1)    return dischargeDate;                  // 退院当日
   return null;
+}
+function dischargeDaysLabel(p, t) {
+  if (!p.dischargeDate || p.dischargeDate >= t) return '';
+  const days = Math.round((new Date(t + 'T00:00:00') - new Date(p.dischargeDate + 'T00:00:00')) / 86400000);
+  return `<span class="post-days-badge">退院後${days}日目</span>`;
 }
 function genTasks(admitDate, dischargeDate, templateKey) {
   const tmpl = TEMPLATES[templateKey];
@@ -1444,8 +1466,9 @@ function renderList() {
     const tmplName  = TEMPLATES[p.template]?.name || p.template;
     const { total, done, pct } = progressOf(p.tasks);
     const complete  = pct === 100;
+    const daysLabel = dischargeDaysLabel(p, t);
     const dateRange = p.dischargeDate
-      ? `${fmtDate(p.admitDate)} 〜 ${fmtDate(p.dischargeDate)}`
+      ? `${fmtDate(p.admitDate)} 〜 ${fmtDate(p.dischargeDate)}${daysLabel ? ' ' + daysLabel : ''}`
       : `${fmtDate(p.admitDate)} 〜 <span class="tbd-badge">退院日未定</span>`;
     const showKarte = isActivePatient(p, t) && isWeekday(t);
     const karteDone = showKarte && !!(p.karteLog?.[t]);
@@ -1517,7 +1540,7 @@ function renderToday() {
       p,
       tasks: p.tasks.filter(tk =>
         !tk.done && (
-          (tk.type === 'day' && tk.date && tk.date < t) ||
+          ((tk.type === 'day' || tk.type === 'post') && tk.date && tk.date < t) ||
           (tk.type === 'pre' && p.admitDate <= t)
         )
       )
@@ -1529,7 +1552,7 @@ function renderToday() {
       <div class="overdue-section-hd">⚠ 未完了・期限切れ</div>
       ${overduePatientGroups.map(g => `
         <div class="overdue-group">
-          <div class="today-group-hd">${esc(g.p.memo)}</div>
+          <div class="today-group-hd">${esc(g.p.memo)} ${dischargeDaysLabel(g.p, t)}</div>
           ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
         </div>`).join('')}
       ${overdueStandalone.length ? `
@@ -1566,7 +1589,7 @@ function renderToday() {
   if (groups.length || todayStandalone.length) {
     html += groups.map(g =>
       `<div class="today-group">
-        <div class="today-group-hd">${esc(g.p.memo)}</div>
+        <div class="today-group-hd">${esc(g.p.memo)} ${dischargeDaysLabel(g.p, t)}</div>
         ${g.tasks.map(tk => taskItem(tk, g.p.id)).join('')}
       </div>`
     ).join('');
@@ -1726,8 +1749,13 @@ function renderDetail() {
   const tmplMemo = TEMPLATES[p.template]?.memo || '';
   const { total, done, pct } = progressOf(p.tasks);
 
-  const preTasks  = p.tasks.filter(t => t.type === 'pre');
-  const postTasks = p.tasks.filter(t => t.type === 'post');
+  const preTasks     = p.tasks.filter(t => t.type === 'pre');
+  const postNoDate   = p.tasks.filter(t => t.type === 'post' && t.date == null);
+  const postWithDate = p.tasks.filter(t => t.type === 'post' && t.date && t.date !== '');
+  const postTbd      = p.tasks.filter(t => t.type === 'post' && t.date === '');
+  const postDateMap  = {};
+  postWithDate.forEach(t => { (postDateMap[t.date] = postDateMap[t.date] || []).push(t); });
+  const sortedPostDates = Object.keys(postDateMap).sort();
   const dayMap = {};
   p.tasks.filter(t => t.type === 'day' && t.date).forEach(t => {
     (dayMap[t.date] = dayMap[t.date] || []).push(t);
@@ -1741,6 +1769,10 @@ function renderDetail() {
     if (p.dischargeDate) {
       if (date === p.dischargeDate)               return '退院当日';
       if (date === dateAdd(p.dischargeDate, -1))  return '退院前日';
+      if (date > p.dischargeDate) {
+        const diff = Math.round((new Date(date + 'T00:00:00') - new Date(p.dischargeDate + 'T00:00:00')) / 86400000);
+        return `退院後${diff}日目`;
+      }
     }
     const diff = Math.round((new Date(date + 'T00:00:00') - new Date(p.admitDate + 'T00:00:00')) / 86400000);
     return `第${diff + 1}病日`;
@@ -1791,10 +1823,22 @@ function renderDetail() {
       </div>`;
     });
   }
-  if (postTasks.length) {
+  sortedPostDates.forEach(date => {
     html += `<div class="post-box">
-      <div class="sec-hd">退院後タスク <span class="sec-pill">退院後</span></div>
-      ${postTasks.map(t => taskItem(t, p.id)).join('')}
+      <div class="sec-hd">${fmtDate(date)} <span class="sec-pill">${dayLabel(date)}</span></div>
+      ${postDateMap[date].map(t => taskItem(t, p.id)).join('')}
+    </div>`;
+  });
+  if (postTbd.length) {
+    html += `<div class="post-box">
+      <div class="sec-hd"><span class="tbd-badge" style="font-size:12px">退院日未定</span> <span class="sec-pill">退院後タスク</span></div>
+      ${postTbd.map(t => taskItem(t, p.id)).join('')}
+    </div>`;
+  }
+  if (postNoDate.length) {
+    html += `<div class="post-box">
+      <div class="sec-hd">退院後タスク <span class="sec-pill">日付なし</span></div>
+      ${postNoDate.map(t => taskItem(t, p.id)).join('')}
     </div>`;
   }
   html += `<button class="add-patient-task-btn" onclick="openPatientTaskSheet('${p.id}')">＋ タスクを追加</button>`;
@@ -1939,9 +1983,9 @@ function saveDischargeDate(clear = false) {
   const p = data.patients.find(x => x.id === editingPatientId);
   if (!p) return;
   p.dischargeDate = newDate || '';
-  // 退院日に依存するタスク（day < 0）の date を再計算
+  // 退院日に依存するタスク（day < 0 / post）の date を再計算
   p.tasks.forEach(t => {
-    if (t.type === 'day' && t.day < 0) {
+    if ((t.type === 'day' && t.day < 0) || t.type === 'post') {
       t.date = calcDate(p.admitDate, p.dischargeDate, t);
     }
   });
