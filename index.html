@@ -1180,7 +1180,7 @@ async function fetchTemplates(force = false) {
         const tRows = parseCSV(await tRes.text());
         // ヘッダー確認
         if (!tRows.length || !('title' in tRows[0])) {
-          errors.push(`「${name || key}」: ヘッダー行が正しくありません（type,day,title,cat,why,how）`);
+          errors.push(`「${name || key}」: ヘッダー行が正しくありません（type,day,title,how,why,cat）`);
           return;
         }
         newTemplates[key] = {
