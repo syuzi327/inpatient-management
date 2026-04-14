@@ -1821,7 +1821,7 @@ function renderDetail() {
       <div class="prog-bg"><div class="prog-fill" style="width:${pct}%"></div></div>
       <div class="prog-text">${done} / ${total} タスク完了 (${pct}%)</div>
     </div>
-    ${karteHistoryHtml(p, t2)}
+    ${isActivePatient(p, t2) ? karteHistoryHtml(p, t2) : ''}
   </div>`;
 
   if (preTasks.length) {
