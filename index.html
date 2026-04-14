@@ -1775,7 +1775,7 @@ function renderDetail() {
   const tmplMemo = TEMPLATES[p.template]?.memo || '';
   const { total, done, pct } = progressOf(p.tasks);
 
-  const preTasks     = p.tasks.filter(t => t.type === 'pre');
+  const preTasks     = p.tasks.filter(t => t.type === 'pre' && !t.date);
   const postNoDate   = p.tasks.filter(t => t.type === 'post' && t.date == null);
   const postWithDate = p.tasks.filter(t => t.type === 'post' && t.date && t.date !== '');
   const postTbd      = p.tasks.filter(t => t.type === 'post' && t.date === '');
@@ -1784,6 +1784,10 @@ function renderDetail() {
   const sortedPostDates = Object.keys(postDateMap).sort();
   const dayMap = {};
   p.tasks.filter(t => t.type === 'day' && t.date).forEach(t => {
+    (dayMap[t.date] = dayMap[t.date] || []).push(t);
+  });
+  // 日付が設定されたpreタスクも日付セクションに表示
+  p.tasks.filter(t => t.type === 'pre' && t.date).forEach(t => {
     (dayMap[t.date] = dayMap[t.date] || []).push(t);
   });
   const sortedDates = Object.keys(dayMap).sort();
@@ -1827,13 +1831,13 @@ function renderDetail() {
   if (preTasks.length) {
     html += `<div class="pre-box">
       <div class="sec-hd">事前タスク <span class="sec-pill">入院前</span></div>
-      ${preTasks.map(t => taskItem(t, p.id, true)).join('')}
+      ${preTasks.map(t => taskItem(t, p.id)).join('')}
     </div>`;
   }
   sortedDates.forEach(date => {
     html += `<div class="date-box">
       <div class="sec-hd">${fmtDate(date)} <span class="sec-pill">${dayLabel(date)}</span></div>
-      ${dayMap[date].map(t => taskItem(t, p.id, true)).join('')}
+      ${dayMap[date].map(t => taskItem(t, p.id)).join('')}
     </div>`;
   });
   if (tbdTasks.length) {
@@ -1845,26 +1849,26 @@ function renderDetail() {
     Object.entries(tbdByLabel).forEach(([lbl, tasks]) => {
       html += `<div class="date-box">
         <div class="sec-hd"><span class="tbd-badge" style="font-size:12px">退院日未定</span> <span class="sec-pill">${lbl}</span></div>
-        ${tasks.map(t => taskItem(t, p.id, true)).join('')}
+        ${tasks.map(t => taskItem(t, p.id)).join('')}
       </div>`;
     });
   }
   sortedPostDates.forEach(date => {
     html += `<div class="post-box">
       <div class="sec-hd">${fmtDate(date)} <span class="sec-pill">${dayLabel(date)}</span></div>
-      ${postDateMap[date].map(t => taskItem(t, p.id, true)).join('')}
+      ${postDateMap[date].map(t => taskItem(t, p.id)).join('')}
     </div>`;
   });
   if (postTbd.length) {
     html += `<div class="post-box">
       <div class="sec-hd"><span class="tbd-badge" style="font-size:12px">退院日未定</span> <span class="sec-pill">退院後タスク</span></div>
-      ${postTbd.map(t => taskItem(t, p.id, true)).join('')}
+      ${postTbd.map(t => taskItem(t, p.id)).join('')}
     </div>`;
   }
   if (postNoDate.length) {
     html += `<div class="post-box">
       <div class="sec-hd">退院後タスク <span class="sec-pill">日付なし</span></div>
-      ${postNoDate.map(t => taskItem(t, p.id, true)).join('')}
+      ${postNoDate.map(t => taskItem(t, p.id)).join('')}
     </div>`;
   }
   html += `<button class="add-patient-task-btn" onclick="openPatientTaskSheet('${p.id}')">＋ タスクを追加</button>`;
@@ -1875,31 +1879,27 @@ function renderDetail() {
 // =====================================================
 // タスクアイテム HTML
 // =====================================================
-function taskItem(task, patientId, showDateEdit = false) {
+function taskItem(task, patientId) {
   const cat = task.cat ? (CAT[task.cat] || { label: task.cat, cls: '' }) : null;
   const hasInfo = !!TASK_INFO[task.title];
-  const dateBtn = showDateEdit
-    ? `<button class="task-date-btn${task.date ? ' has-date' : ''}" onclick="openEditTaskDate('${patientId}','${task.id}')">${task.date ? fmtDate(task.date) : '日付なし'}</button>`
-    : '';
   return `<div class="task-item${task.done ? ' done' : ''}" id="ti-${task.id}">
     <div class="chk${task.done ? ' checked' : ''}" onclick="toggleTask('${patientId}','${task.id}')"></div>
-    <div class="task-body" data-title="${esc(task.title)}" data-cat="${esc(task.cat)}" onclick="openTaskInfoFromEl(this)">
+    <div class="task-body" data-title="${esc(task.title)}" data-cat="${esc(task.cat)}" data-patient-id="${patientId}" data-task-id="${task.id}" onclick="openTaskInfoFromEl(this)">
       <div class="task-title">${esc(task.title)}</div>
       ${hasInfo ? '<span class="info-hint">ℹ︎</span>' : ''}
     </div>
     ${cat ? `<span class="badge ${cat.cls}">${cat.label}</span>` : ''}
-    ${dateBtn}
   </div>`;
 }
 
 function openTaskInfoFromEl(el) {
-  openTaskInfo(el.dataset.title, el.dataset.cat);
+  openTaskInfo(el.dataset.title, el.dataset.cat, el.dataset.patientId, el.dataset.taskId);
 }
 
 // =====================================================
 // タスク詳細モーダル
 // =====================================================
-function openTaskInfo(title, catKey) {
+function openTaskInfo(title, catKey, patientId, taskId) {
   const info = TASK_INFO[title];
   const cat  = CAT[catKey] || { label: catKey, cls: '' };
 
@@ -1919,6 +1919,13 @@ function openTaskInfo(title, catKey) {
     </div>`;
   } else {
     html += `<div class="info-no-data">このタスクの解説はまだありません</div>`;
+  }
+
+  if (patientId && taskId) {
+    const { patients } = loadData();
+    const task = patients.find(x => x.id === patientId)?.tasks.find(x => x.id === taskId);
+    const dateLabel = task?.date ? fmtDate(task.date) : '日付なし';
+    html += `<button class="edit-date-btn" style="margin-top:16px;width:100%;padding:10px;border-radius:9px;font-size:14px;text-align:center" onclick="openEditTaskDate('${patientId}','${taskId}')">📅 日付を変更（現在：${dateLabel}）</button>`;
   }
 
   document.getElementById('info-sheet-body').innerHTML = html;
