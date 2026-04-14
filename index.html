@@ -517,6 +517,19 @@
       white-space: nowrap;
     }
     .edit-date-btn:active { opacity: 0.7; }
+    .task-date-btn {
+      background: none;
+      border: 1px solid #3a3a3a;
+      border-radius: 6px;
+      color: #555;
+      font-size: 11px;
+      padding: 3px 7px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .task-date-btn:active { opacity: 0.7; }
+    .task-date-btn.has-date { color: var(--accent); border-color: rgba(96,165,250,0.3); }
     .tbd-badge {
       font-size: 12px;
       color: #f97316;
@@ -883,6 +896,19 @@
   </div>
   <button class="submit-btn" onclick="saveDischargeDate()">保存する</button>
   <button class="delete-btn" style="margin-top:10px" onclick="saveDischargeDate(true)">未定に戻す</button>
+</div>
+
+<!-- タスク日付編集シート -->
+<div class="sheet" id="task-date-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">タスクの日付を設定</div>
+  <div id="task-date-task-name" style="font-size:13px;color:#aaa;margin-bottom:14px;line-height:1.5"></div>
+  <div class="form-group">
+    <label class="form-label">日付（空欄にすると元の日付に戻します）</label>
+    <input type="date" id="edit-task-date" class="form-input" oninput="updateDow('edit-task-date','edit-task-date-dow')">
+    <div id="edit-task-date-dow" class="date-dow"></div>
+  </div>
+  <button class="submit-btn" onclick="saveTaskDate()">保存する</button>
 </div>
 
 <script>
@@ -1801,13 +1827,13 @@ function renderDetail() {
   if (preTasks.length) {
     html += `<div class="pre-box">
       <div class="sec-hd">事前タスク <span class="sec-pill">入院前</span></div>
-      ${preTasks.map(t => taskItem(t, p.id)).join('')}
+      ${preTasks.map(t => taskItem(t, p.id, true)).join('')}
     </div>`;
   }
   sortedDates.forEach(date => {
     html += `<div class="date-box">
       <div class="sec-hd">${fmtDate(date)} <span class="sec-pill">${dayLabel(date)}</span></div>
-      ${dayMap[date].map(t => taskItem(t, p.id)).join('')}
+      ${dayMap[date].map(t => taskItem(t, p.id, true)).join('')}
     </div>`;
   });
   if (tbdTasks.length) {
@@ -1819,26 +1845,26 @@ function renderDetail() {
     Object.entries(tbdByLabel).forEach(([lbl, tasks]) => {
       html += `<div class="date-box">
         <div class="sec-hd"><span class="tbd-badge" style="font-size:12px">退院日未定</span> <span class="sec-pill">${lbl}</span></div>
-        ${tasks.map(t => taskItem(t, p.id)).join('')}
+        ${tasks.map(t => taskItem(t, p.id, true)).join('')}
       </div>`;
     });
   }
   sortedPostDates.forEach(date => {
     html += `<div class="post-box">
       <div class="sec-hd">${fmtDate(date)} <span class="sec-pill">${dayLabel(date)}</span></div>
-      ${postDateMap[date].map(t => taskItem(t, p.id)).join('')}
+      ${postDateMap[date].map(t => taskItem(t, p.id, true)).join('')}
     </div>`;
   });
   if (postTbd.length) {
     html += `<div class="post-box">
       <div class="sec-hd"><span class="tbd-badge" style="font-size:12px">退院日未定</span> <span class="sec-pill">退院後タスク</span></div>
-      ${postTbd.map(t => taskItem(t, p.id)).join('')}
+      ${postTbd.map(t => taskItem(t, p.id, true)).join('')}
     </div>`;
   }
   if (postNoDate.length) {
     html += `<div class="post-box">
       <div class="sec-hd">退院後タスク <span class="sec-pill">日付なし</span></div>
-      ${postNoDate.map(t => taskItem(t, p.id)).join('')}
+      ${postNoDate.map(t => taskItem(t, p.id, true)).join('')}
     </div>`;
   }
   html += `<button class="add-patient-task-btn" onclick="openPatientTaskSheet('${p.id}')">＋ タスクを追加</button>`;
@@ -1849,9 +1875,12 @@ function renderDetail() {
 // =====================================================
 // タスクアイテム HTML
 // =====================================================
-function taskItem(task, patientId) {
+function taskItem(task, patientId, showDateEdit = false) {
   const cat = task.cat ? (CAT[task.cat] || { label: task.cat, cls: '' }) : null;
   const hasInfo = !!TASK_INFO[task.title];
+  const dateBtn = showDateEdit
+    ? `<button class="task-date-btn${task.date ? ' has-date' : ''}" onclick="openEditTaskDate('${patientId}','${task.id}')">${task.date ? fmtDate(task.date) : '日付なし'}</button>`
+    : '';
   return `<div class="task-item${task.done ? ' done' : ''}" id="ti-${task.id}">
     <div class="chk${task.done ? ' checked' : ''}" onclick="toggleTask('${patientId}','${task.id}')"></div>
     <div class="task-body" data-title="${esc(task.title)}" data-cat="${esc(task.cat)}" onclick="openTaskInfoFromEl(this)">
@@ -1859,6 +1888,7 @@ function taskItem(task, patientId) {
       ${hasInfo ? '<span class="info-hint">ℹ︎</span>' : ''}
     </div>
     ${cat ? `<span class="badge ${cat.cls}">${cat.label}</span>` : ''}
+    ${dateBtn}
   </div>`;
 }
 
@@ -1935,7 +1965,7 @@ function openRegModal() {
 }
 
 function closeAllSheets() {
-  ['overlay','reg-sheet','info-sheet','discharge-sheet','help-sheet','standalone-sheet','patient-task-sheet'].forEach(id => {
+  ['overlay','reg-sheet','info-sheet','discharge-sheet','help-sheet','standalone-sheet','patient-task-sheet','task-date-sheet'].forEach(id => {
     document.getElementById(id).classList.remove('open');
   });
 }
@@ -1989,6 +2019,45 @@ function saveDischargeDate(clear = false) {
       t.date = calcDate(p.admitDate, p.dischargeDate, t);
     }
   });
+  saveData(data);
+  closeAllSheets();
+  refreshAll();
+}
+
+// =====================================================
+// タスク日付編集
+// =====================================================
+let editingTaskPatientId = null;
+let editingTaskId = null;
+
+function openEditTaskDate(patientId, taskId) {
+  const { patients } = loadData();
+  const p = patients.find(x => x.id === patientId);
+  if (!p) return;
+  const task = p.tasks.find(x => x.id === taskId);
+  if (!task) return;
+  editingTaskPatientId = patientId;
+  editingTaskId = taskId;
+  document.getElementById('task-date-task-name').textContent = task.title;
+  document.getElementById('edit-task-date').value = task.date || '';
+  updateDow('edit-task-date', 'edit-task-date-dow');
+  openSheet('task-date-sheet');
+}
+
+function saveTaskDate() {
+  if (!editingTaskPatientId || !editingTaskId) return;
+  const data = loadData();
+  const p = data.patients.find(x => x.id === editingTaskPatientId);
+  if (!p) return;
+  const task = p.tasks.find(x => x.id === editingTaskId);
+  if (!task) return;
+  const newDate = document.getElementById('edit-task-date').value;
+  if (newDate) {
+    task.date = newDate;
+  } else {
+    // 空欄の場合：元の計算日付に戻す（preタスクはnullのまま）
+    task.date = calcDate(p.admitDate, p.dischargeDate, task);
+  }
   saveData(data);
   closeAllSheets();
   refreshAll();
