@@ -1903,8 +1903,11 @@ function openTaskInfo(title, catKey, patientId, taskId) {
   const info = TASK_INFO[title];
   const cat  = CAT[catKey] || { label: catKey, cls: '' };
 
+  const titleHtml = (patientId && taskId)
+    ? `<input type="text" id="rename-task-input" class="info-sheet-title" value="${esc(title)}" onblur="renameTask('${patientId}','${taskId}')" style="background:none;border:none;outline:none;padding:0;width:0;flex:1;">`
+    : `<div class="info-sheet-title">${esc(title)}</div>`;
   let html = `<div class="info-sheet-badge-row">
-    <div class="info-sheet-title">${esc(title)}</div>
+    ${titleHtml}
     <span class="badge ${cat.cls}">${cat.label}</span>
   </div>`;
 
@@ -2067,6 +2070,23 @@ function saveTaskDate() {
   }
   saveData(data);
   closeAllSheets();
+  refreshAll();
+}
+
+// =====================================================
+// タスク名変更
+// =====================================================
+function renameTask(patientId, taskId) {
+  const newTitle = document.getElementById('rename-task-input').value.trim();
+  if (!newTitle) return;
+  const data = loadData();
+  const p = data.patients.find(x => x.id === patientId);
+  if (!p) return;
+  const task = p.tasks.find(x => x.id === taskId);
+  if (!task) return;
+  if (task.title === newTitle) return;
+  task.title = newTitle;
+  saveData(data);
   refreshAll();
 }
 
