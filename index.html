@@ -1567,7 +1567,8 @@ function renderToday() {
       tasks: p.tasks.filter(tk =>
         !tk.done && (
           ((tk.type === 'day' || tk.type === 'post') && tk.date && tk.date < t) ||
-          (tk.type === 'pre' && p.admitDate <= t)
+          (tk.type === 'pre' && !tk.date && p.admitDate <= t) ||
+          (tk.type === 'pre' && tk.date && tk.date < t)
         )
       )
     }))
