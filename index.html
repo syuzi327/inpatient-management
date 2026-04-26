@@ -1868,7 +1868,7 @@ function renderDetail() {
     <div class="detail-memo">${esc(p.memo)}</div>
     <div class="discharge-row" style="margin-top:2px">
       ${p.disease ? `<span class="detail-disease">${esc(p.disease)}</span>` : '<span style="font-size:13px;color:#444">病名未設定</span>'}
-      <button class="edit-date-btn" onclick="openEditDisease('${p.id}')">病名を変更</button>
+      <button class="edit-date-btn" style="margin-left:auto" onclick="openEditDisease('${p.id}')">病名を変更</button>
     </div>
     <div class="detail-info">${esc(tmplName)}</div>
     <div class="discharge-row">
