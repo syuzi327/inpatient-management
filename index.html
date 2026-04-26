@@ -272,12 +272,27 @@
     .detail-memo { font-size: 22px; font-weight: 700; color: #fff; }
     .detail-info { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
     .detail-note {
-      font-size: 13px;
+      font-size: 15px;
       color: #bbb;
       margin-top: 10px;
       padding-top: 10px;
       border-top: 1px solid var(--border);
     }
+    .note-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .note-row .note-text {
+      flex: 1;
+      font-size: 15px;
+      color: #bbb;
+      line-height: 1.5;
+    }
+    .note-row .note-text.empty { color: #555; }
     .standalone-section {
       margin-top: 24px;
       border-top: 1px solid var(--border);
@@ -475,6 +490,7 @@
     .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
     .form-select { -webkit-appearance: none; appearance: none; }
     .form-textarea { resize: vertical; min-height: 72px; }
+    #f-note, #edit-note { font-size: 17px; }
     .submit-btn, .form-submit {
       width: 100%;
       background: var(--accent);
@@ -909,6 +925,18 @@
     <div id="edit-task-date-dow" class="date-dow"></div>
   </div>
   <button class="submit-btn" onclick="saveTaskDate()">保存する</button>
+</div>
+
+<!-- 備考編集シート -->
+<div class="sheet" id="note-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">備考を変更</div>
+  <div class="form-group">
+    <label class="form-label">備考（アレルギー・禁忌など）</label>
+    <textarea id="edit-note" class="form-textarea" placeholder="例：ワーファリン内服中・休薬済み"></textarea>
+  </div>
+  <button class="submit-btn" onclick="saveNote()">保存する</button>
+  <button class="delete-btn" style="margin-top:10px" onclick="saveNote(true)">備考を削除</button>
 </div>
 
 <script>
@@ -1527,7 +1555,7 @@ function renderList() {
     html += g.patients.map(cardHtml).join('');
   });
   el.innerHTML = html;
-  document.getElementById('fab-delete').classList.toggle('hidden', !groups[3].patients.length);
+  document.getElementById('fab-delete').classList.toggle('hidden', currentTab !== 'list' || !groups[3].patients.length);
   updateKarteSummary();
 }
 
@@ -1820,7 +1848,10 @@ function renderDetail() {
       <span style="font-size:13px;color:#aaa">${fmtDate(p.admitDate)} 〜 ${dischargePart}</span>
       <button class="edit-date-btn" onclick="openEditDischarge('${p.id}')">退院日を変更</button>
     </div>
-    ${p.note ? `<div class="detail-note">${esc(p.note)}</div>` : ''}
+    <div class="note-row">
+      <span class="note-text${p.note ? '' : ' empty'}">${p.note ? esc(p.note) : '備考なし'}</span>
+      <button class="edit-date-btn" onclick="openEditNote('${p.id}')">備考を変更</button>
+    </div>
     ${tmplMemo ? `<div class="tmpl-memo">${esc(tmplMemo)}</div>` : ''}
     <div class="prog-wrap">
       <div class="prog-bg"><div class="prog-fill" style="width:${pct}%"></div></div>
@@ -2072,6 +2103,29 @@ function saveTaskDate() {
   saveData(data);
   closeAllSheets();
   refreshAll();
+}
+
+// =====================================================
+// 備考編集
+// =====================================================
+function openEditNote(patientId) {
+  const { patients } = loadData();
+  const p = patients.find(x => x.id === patientId);
+  if (!p) return;
+  editingPatientId = patientId;
+  document.getElementById('edit-note').value = p.note || '';
+  openSheet('note-sheet');
+}
+
+function saveNote(clear = false) {
+  if (!editingPatientId) return;
+  const data = loadData();
+  const p = data.patients.find(x => x.id === editingPatientId);
+  if (!p) return;
+  p.note = clear ? '' : document.getElementById('edit-note').value.trim();
+  saveData(data);
+  closeAllSheets();
+  renderDetail();
 }
 
 // =====================================================
