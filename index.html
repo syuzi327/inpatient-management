@@ -464,6 +464,7 @@
       z-index: 201;
       max-height: 70vh;
       overflow-y: auto;
+      overflow-x: hidden;
     }
     .sheet.open { display: block; }
     .sheet-handle {
@@ -508,7 +509,7 @@
     .submit-btn:active, .form-submit:active { opacity: 0.8; }
     input[type="date"] { color-scheme: dark; }
     .form-date-row { display: flex; gap: 10px; margin-bottom: 14px; }
-    .form-date-row .form-group { flex: 1; margin-bottom: 0; }
+    .form-date-row .form-group { flex: 1; margin-bottom: 0; min-width: 0; overflow: hidden; }
     .date-label { font-size: 11px; color: #888; margin-right: 6px; }
 
     /* ===== DATE DOW HINT ===== */
@@ -763,8 +764,8 @@
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">備考（病名、アレルギー、禁忌など）</label>
-      <textarea id="f-note" class="form-textarea" placeholder="例：肺動静脈瘻、ワーファリン内服中、造影剤アレルギーなど"></textarea>
+      <label class="form-label">備考（アレルギー・禁忌など）</label>
+      <textarea id="f-note" class="form-textarea" placeholder="例：ワーファリン内服中・休薬済み"></textarea>
     </div>
     <button type="submit" class="submit-btn">登録する</button>
   </form>
@@ -943,7 +944,7 @@
   <div class="sheet-title">備考を変更</div>
   <div class="form-group">
     <label class="form-label">備考（病名、アレルギー、禁忌など）</label>
-    <textarea id="edit-note" class="form-textarea" placeholder="例：肺動静脈瘻、ワーファリン内服中、造影剤アレルギーなど"></textarea>
+    <textarea id="edit-note" class="form-textarea" placeholder="例：ワーファリン内服中・休薬済み"></textarea>
   </div>
   <button class="submit-btn" onclick="saveNote()">保存する</button>
   <button class="delete-btn" style="margin-top:10px" onclick="saveNote(true)">備考を削除</button>
