@@ -280,19 +280,18 @@
     }
     .note-row {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
-      margin-top: 8px;
-      padding-top: 8px;
+      margin-top: 6px;
+      padding-top: 6px;
       border-top: 1px solid var(--border);
     }
     .note-row .note-text {
       flex: 1;
       font-size: 15px;
       color: #bbb;
-      line-height: 1.5;
+      white-space: pre-wrap;
     }
-    .note-row .note-text.empty { font-size: 13px; color: #555; }
     .standalone-section {
       margin-top: 24px;
       border-top: 1px solid var(--border);
@@ -1849,7 +1848,7 @@ function renderDetail() {
       <button class="edit-date-btn" onclick="openEditDischarge('${p.id}')">退院日を変更</button>
     </div>
     <div class="note-row">
-      <span class="note-text${p.note ? '' : ' empty'}">${p.note ? esc(p.note) : '備考なし'}</span>
+      ${p.note ? `<span class="note-text">${esc(p.note)}</span>` : ''}
       <button class="edit-date-btn" onclick="openEditNote('${p.id}')">備考を変更</button>
     </div>
     ${tmplMemo ? `<div class="tmpl-memo">${esc(tmplMemo)}</div>` : ''}
