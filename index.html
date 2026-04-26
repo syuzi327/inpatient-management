@@ -504,6 +504,8 @@
     }
     .submit-btn:active, .form-submit:active { opacity: 0.8; }
     input[type="date"] { color-scheme: dark; }
+    .form-date-row { display: flex; gap: 10px; margin-bottom: 14px; }
+    .form-date-row .form-group { flex: 1; margin-bottom: 0; }
     .date-label { font-size: 11px; color: #888; margin-right: 6px; }
 
     /* ===== DATE DOW HINT ===== */
@@ -741,15 +743,17 @@
       <label class="form-label">テンプレート *</label>
       <select id="f-template" class="form-select"></select>
     </div>
-    <div class="form-group">
-      <label class="form-label">入院日 *</label>
-      <input type="date" id="f-admit" class="form-input" required oninput="updateDow('f-admit','admit-dow')">
-      <div id="admit-dow" class="date-dow"></div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">予定退院日（未定の場合は空欄でOK）</label>
-      <input type="date" id="f-discharge" class="form-input" oninput="updateDow('f-discharge','discharge-dow')">
-      <div id="discharge-dow" class="date-dow"></div>
+    <div class="form-date-row">
+      <div class="form-group">
+        <label class="form-label">入院日 *</label>
+        <input type="date" id="f-admit" class="form-input" required oninput="updateDow('f-admit','admit-dow')">
+        <div id="admit-dow" class="date-dow"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">予定退院日（未定は空欄）</label>
+        <input type="date" id="f-discharge" class="form-input" oninput="updateDow('f-discharge','discharge-dow')">
+        <div id="discharge-dow" class="date-dow"></div>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">備考（病名、アレルギー、禁忌など）</label>
