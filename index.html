@@ -118,6 +118,7 @@
     }
     .patient-card:active { border-color: var(--accent); }
     .patient-memo { font-size: 18px; font-weight: 700; color: #fff; }
+    .patient-disease { font-size: 13px; font-weight: 400; color: #aaa; margin-left: 6px; }
     .patient-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
     .patient-dates { font-size: 13px; color: #aaa; margin-top: 6px; }
 
@@ -270,6 +271,7 @@
       margin-bottom: 18px;
     }
     .detail-memo { font-size: 22px; font-weight: 700; color: #fff; }
+    .detail-disease { font-size: 16px; color: #ccc; margin-top: 2px; }
     .detail-info { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
     .detail-note {
       font-size: 15px;
@@ -292,6 +294,7 @@
       color: #bbb;
       white-space: pre-wrap;
     }
+    .note-row .edit-date-btn { margin-left: auto; flex-shrink: 0; }
     .standalone-section {
       margin-top: 24px;
       border-top: 1px solid var(--border);
@@ -740,6 +743,10 @@
       <input type="text" id="f-memo" class="form-input" placeholder="個人情報は入力しないでください" required>
     </div>
     <div class="form-group">
+      <label class="form-label">病名（任意）</label>
+      <input type="text" id="f-disease" class="form-input" placeholder="例：肺動静脈瘻">
+    </div>
+    <div class="form-group">
       <label class="form-label">テンプレート *</label>
       <select id="f-template" class="form-select"></select>
     </div>
@@ -940,6 +947,18 @@
   </div>
   <button class="submit-btn" onclick="saveNote()">保存する</button>
   <button class="delete-btn" style="margin-top:10px" onclick="saveNote(true)">備考を削除</button>
+</div>
+
+<!-- 病名編集シート -->
+<div class="sheet" id="disease-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">病名を変更</div>
+  <div class="form-group">
+    <label class="form-label">病名</label>
+    <input type="text" id="edit-disease" class="form-input" placeholder="例：肺動静脈瘻">
+  </div>
+  <button class="submit-btn" onclick="saveDisease()">保存する</button>
+  <button class="delete-btn" style="margin-top:10px" onclick="saveDisease(true)">病名を削除</button>
 </div>
 
 <script>
@@ -1535,7 +1554,7 @@ function renderList() {
     return `<div class="patient-card${complete ? ' completed' : ''}" onclick="openDetail('${p.id}')">
       <div style="display:flex;align-items:flex-start;gap:8px">
         <div style="flex:1;min-width:0">
-          <div class="patient-memo">${esc(p.memo)}</div>
+          <div class="patient-memo">${esc(p.memo)}${p.disease ? `<span class="patient-disease">${esc(p.disease)}</span>` : ''}</div>
           <div class="patient-sub">${esc(tmplName)}</div>
         </div>
         ${karteBadge}
@@ -1846,6 +1865,10 @@ function renderDetail() {
     : `<span class="tbd-badge">未定</span>`;
   let html = `<div class="detail-hd">
     <div class="detail-memo">${esc(p.memo)}</div>
+    <div class="discharge-row" style="margin-top:2px">
+      ${p.disease ? `<span class="detail-disease">${esc(p.disease)}</span>` : '<span style="font-size:13px;color:#444">病名未設定</span>'}
+      <button class="edit-date-btn" onclick="openEditDisease('${p.id}')">病名を変更</button>
+    </div>
     <div class="detail-info">${esc(tmplName)}</div>
     <div class="discharge-row">
       <span style="font-size:13px;color:#aaa">${fmtDate(p.admitDate)} 〜 ${dischargePart}</span>
@@ -2010,7 +2033,7 @@ function openRegModal() {
 }
 
 function closeAllSheets() {
-  ['overlay','reg-sheet','info-sheet','discharge-sheet','help-sheet','standalone-sheet','patient-task-sheet','task-date-sheet','note-sheet'].forEach(id => {
+  ['overlay','reg-sheet','info-sheet','discharge-sheet','help-sheet','standalone-sheet','patient-task-sheet','task-date-sheet','note-sheet','disease-sheet'].forEach(id => {
     document.getElementById(id).classList.remove('open');
   });
 }
@@ -2109,6 +2132,30 @@ function saveTaskDate() {
 }
 
 // =====================================================
+// 病名編集
+// =====================================================
+function openEditDisease(patientId) {
+  const { patients } = loadData();
+  const p = patients.find(x => x.id === patientId);
+  if (!p) return;
+  editingPatientId = patientId;
+  document.getElementById('edit-disease').value = p.disease || '';
+  openSheet('disease-sheet');
+}
+
+function saveDisease(clear = false) {
+  if (!editingPatientId) return;
+  const data = loadData();
+  const p = data.patients.find(x => x.id === editingPatientId);
+  if (!p) return;
+  p.disease = clear ? '' : document.getElementById('edit-disease').value.trim();
+  saveData(data);
+  closeAllSheets();
+  renderDetail();
+  renderList();
+}
+
+// =====================================================
 // 備考編集
 // =====================================================
 function openEditNote(patientId) {
@@ -2151,6 +2198,7 @@ function renameTask(patientId, taskId) {
 function submitForm(e) {
   e.preventDefault();
   const memo          = document.getElementById('f-memo').value.trim();
+  const disease       = document.getElementById('f-disease').value.trim();
   const template      = document.getElementById('f-template').value;
   const admitDate     = document.getElementById('f-admit').value;
   const dischargeDate = document.getElementById('f-discharge').value;
@@ -2159,7 +2207,7 @@ function submitForm(e) {
   if (!memo || !admitDate) return;
   if (dischargeDate && dischargeDate < admitDate) { alert('退院予定日は入院日以降にしてください。'); return; }
 
-  const patient = { id: uid(), memo, admitDate, dischargeDate, template, note,
+  const patient = { id: uid(), memo, disease, admitDate, dischargeDate, template, note,
     tasks: genTasks(admitDate, dischargeDate, template) };
   const data = loadData();
   data.patients.unshift(patient);
